@@ -320,19 +320,19 @@ switch在Java 7开始支持String，但是不支持double、long、float等数�
       　　这是在各种Java泛型面试中，一开场你就会被问到的问题中的一个，主要集中在初级和中级面试中。那些拥有Java1.4或更早版本的开发背景的人都知道，在集合中存储对象并在使用前进行类型转换是多么的不方便。泛型防止了那种情况的发生。它提供了编译期的类型安全，确保你只能把正确类型的对象放入集合中，避免了在运行时出现ClassCastException。
 
          　　2. Java的泛型是如何工作的 ? 什么是类型擦除 ?
-
+    
          　　这是一道更好的泛型面试题。泛型是通过类型擦除来实现的，编译器在编译时擦除了所有类型相关的信息，所以在运行时不存在任何类型相关的信息。例如List<String>在运行时仅用一个List来表示。这样做的目的，是确保能和Java 5之前的版本开发二进制类库进行兼容。你无法在运行时访问到类型参数，因为编译器已经把泛型类型转换成了原始类型。根据你对这个泛型问题的回答情况，你会得到一些后续提问，比如为什么泛型是由类型擦除来实现的或者给你展示一些会导致编译器出错的错误泛型代码。请阅读我的Java中泛型是如何工作的来了解更多信息。
-
+    
          　　3. 什么是泛型中的限定通配符和非限定通配符 ?
-
+    
          　　这是另一个非常流行的Java泛型面试题。限定通配符对类型进行了限制。有两种限定通配符，一种是\<? extends T\>它通过确保类型必须是T的子类来设定类型的上界，另一种是\<? super T\>它通过确保类型必须是T的父类来设定类型的下界。泛型类型必须用限定内的类型来进行初始化，否则会导致编译错误。另一方面\<?>表示了非限定通配符，因为<?>可以用任意类型来替代。更多信息请参阅我的文章泛型中限定通配符和非限定通配符之间的区别。
-
+    
          　　4. List<? extends T>和List <? super T>之间有什么区别 ?
-
+    
          　　这和上一个面试题有联系，有时面试官会用这个问题来评估你对泛型的理解，而不是直接问你什么是限定通配符和非限定通配符。这两个List的声明都是限定通配符的例子，List<? extends T>可以接受任何继承自T的类型的List，而List<? super T>可以接受任何T的父类构成的List。例如List<? extends Number>可以接受List<Integer>或List<Float>。在本段出现的连接中可以找到更多信息。
-
+    
          　　5. 如何编写一个泛型方法，让它能接受泛型参数并返回泛型类型?
-
+    
          　　编写泛型方法并不困难，你需要用泛型类型来替代原始类型，比如使用T, E or K,V等被广泛认可的类型占位符。泛型方法的例子请参阅Java集合类框架。最简单的情况下，一个泛型方法可能会像这样:
 
    ```java
@@ -500,25 +500,91 @@ JDK是Java Development Kit，Java开发工具包，提供了Java的开发和运�
        ```
 
    	4. ```java
-       transient Object[] elementData; // non-private to simplify nested class access
-       //表示不可以被序列化
-       ```
-
-       ArrayList 实现了 writeObject() 和 readObject() 来控制只序列化数组中有元素填充那部分内容。
-
-       序列化时需要使用 ObjectOutputStream 的 writeObject() 将对象转换为字节流并输出。而 writeObject() 方法在传入的对象存在 writeObject() 的时候会去反射调用该对象的 writeObject() 来实现序列化。反序列化使用的是  ObjectInputStream 的 readObject() 方法，原理类似。
-
-       ```java
+         transient Object[] elementData; // non-private to simplify nested class access
+         //表示不可以被序列化
+         ```
+   ```
+       
+   ArrayList 实现了 writeObject() 和 readObject() 来控制只序列化数组中有元素填充那部分内容。
+       
+   序列化时需要使用 ObjectOutputStream 的 writeObject() 将对象转换为字节流并输出。而 writeObject() 方法在传入的对象存在 writeObject() 的时候会去反射调用该对象的 writeObject() 来实现序列化。反序列化使用的是  ObjectInputStream 的 readObject() 方法，原理类似。
+       
+       ​```java
        ArrayList list = new ArrayList();
        ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file));
        oos.writeObject(list);
-       ```
-
+   ```
+       
        在序列化过程中需要对比前后的modCount是否改变，如果改变需要抛出异常。
 
-2. Vector：线程安全的，和ArrayList类似。
+2. Vector：线程安全的，和ArrayList类似。用了synchronized关键字。
 
-3. LinkedList：双向链表实现，只可以顺序访问，可以快速插入和删除，**还可以用作栈、队列、双向队列，因为有类似的add操作和pop操作，且速度比Stack快**
+   ```java
+   public Vector(int initialCapacity, int capacityIncrement) {
+       super();
+       if (initialCapacity < 0)
+           throw new IllegalArgumentException("Illegal Capacity: "+
+                                              initialCapacity);
+       this.elementData = new Object[initialCapacity];
+       this.capacityIncrement = capacityIncrement;
+   }
+   //vector的构造函数
+   ```
+
+   构造过程是每次让capacity翻倍(如果increment为负的或者没有时)，或者是每次增加capacityIncrement这么多。
+
+   **Vector 是同步的，因此开销就比 ArrayList 要大，访问速度更慢。最好使用 ArrayList 而不是 Vector，因为同步操作完全可以由程序员自己来控制；**
+
+   可以使用 `Collections.synchronizedList();` 得到一个线程安全的 ArrayList。
+
+   ```java
+   List<String> list = new ArrayList<>();
+   List<String> synList = Collections.synchronizedList(list);
+   //线程安全的ArrayList
+   List<String> list = new CopyOnWriteArrayList<>();//或者用这个
+   ```
+
+3. CopyOnWriteArrayList：两个数组，写的时候在复制的数组上面进行，读写分离互不影响。写需要加锁，防止并发写入数据丢失，写结束之后要把原始数组指向复制数组。
+
+   ```java
+   public boolean add(E e) {
+       final ReentrantLock lock = this.lock;
+       lock.lock();
+       try {
+           Object[] elements = getArray();
+           int len = elements.length;
+           Object[] newElements = Arrays.copyOf(elements, len + 1);//复制
+           newElements[len] = e;
+           setArray(newElements);//设置回去
+           return true;
+       } finally {
+           lock.unlock();
+       }
+   }
+   
+   final void setArray(Object[] a) {
+       array = a;
+   }
+   
+   ```
+
+   适合读多写少的应用场景，但是有缺陷，写的时候复制则内存消耗为两倍，读的时候部分数据可能会没有读到最新写过的。所以不适合内存敏感以及对实时性要求很高的场景。
+
+4. LinkedList：双向链表实现，只可以顺序访问，可以快速插入和删除，**还可以用作栈、队列、双向队列，因为有类似的add操作和pop操作，且速度比Stack快**
+
+   基于双向链表实现：
+
+   ```java
+   private static class Node<E> {//节点
+       E item;
+       Node<E> next;
+       Node<E> prev;
+   }
+   transient Node<E> first;//意思是不可以被序列化
+   transient Node<E> last;//链表有头和尾指针
+   ```
+
+   所以它不支持随机访问，删除和插入代价小。
 
 ##### 3. Queue
 
@@ -528,9 +594,145 @@ JDK是Java Development Kit，Java开发工具包，提供了Java的开发和运�
 #### Map
 
 1. TreeMap：红黑树实现的Treee
+
 2. HashMap：基于hash表实现
+
+   JDK1.7源码分析
+
+   ```java
+   transient Entry[] table;//一个数组，每个数组都挂着一个链表
+   static class Entry<K,V> implements Map.Entry<K,V> {
+       final K key;//key
+       V value;
+       Entry<K,V> next;//链表结构
+       int hash;//hash值
+   
+       Entry(int h, K k, V v, Entry<K,V> n) {
+           value = v;
+           next = n;
+           key = k;
+           hash = h;
+       }
+   
+       public final K getKey() {
+           return key;
+       }
+   
+       public final V getValue() {
+           return value;
+       }
+   
+       public final V setValue(V newValue) {
+           V oldValue = value;
+           value = newValue;
+           return oldValue;//返回老的值
+       }
+   
+       public final boolean equals(Object o) {
+           if (!(o instanceof Map.Entry))//不属于entry
+               return false;
+           Map.Entry e = (Map.Entry)o;
+           Object k1 = getKey();
+           Object k2 = e.getKey();
+           if (k1 == k2 || (k1 != null && k1.equals(k2))) {
+               Object v1 = getValue();
+               Object v2 = e.getValue();
+               if (v1 == v2 || (v1 != null && v1.equals(v2)))
+                   return true;//键和值都相等
+           }
+           return false;
+       }
+   
+       public final int hashCode() {
+           return Objects.hashCode(getKey()) ^ Objects.hashCode(getValue());
+           //计算hash值，并且将key和value计算之后的值异或一下
+       }
+   
+       public final String toString() {
+           return getKey() + "=" + getValue();
+       }
+   }
+   
+   ```
+
+   此处的链表是以头插法进行的，即插入的位置不是链表的尾部而是头部。
+
+   查找的时候先计算获得在表格里面的位置，然后在表格里面的链表进行查找
+
+   put操作过程，将null键单独处理，因为无法调用其hashcode方法，所以强制存放在0号数组位置。然后要确认一下找到的键的值是否和现在不一样，如果不一样就更新为put进去的值，如果键不存在就放在了链表的头部。
+
+   ```java
+   public V put(K key, V value) {
+       if (table == EMPTY_TABLE) {
+           inflateTable(threshold);
+       }
+       // 键为 null 单独处理
+       if (key == null)
+           return putForNullKey(value);
+       int hash = hash(key);//计算hash值，函数在下面
+       // 确定桶下标
+       int i = indexFor(hash, table.length);
+       
+       //static int indexFor(int h, int length) {
+       //return h & (length-1);//获得的hash值和table大小取模，与一个2的倍数-1，某一位之后全为1，位运算快。所以表格长度一般就是2的倍数
+   	//	}
+   
+       // 先找出是否已经存在键为 key 的键值对，如果存在的话就更新这个键值对的值为 value
+       for (Entry<K,V> e = table[i]; e != null; e = e.next) {
+           Object k;
+           if (e.hash == hash && ((k = e.key) == key || key.equals(k))) {
+               V oldValue = e.value;
+               e.value = value;
+               e.recordAccess(this);
+               return oldValue;
+           }
+       }
+   
+       modCount++;
+       // 插入新键值对
+       addEntry(hash, key, value, i);
+       return null;
+   }
+   
+   final int hash(Object k) {
+       int h = hashSeed;
+       if (0 != h && k instanceof String) {
+           return sun.misc.Hashing.stringHash32((String) k);
+       }
+   
+       h ^= k.hashCode();
+   
+       // This function ensures that hashCodes that differ only by
+       // constant multiples at each bit position have a bounded
+       // number of collisions (approximately 8 at default load factor).
+       h ^= (h >>> 20) ^ (h >>> 12);
+       return h ^ (h >>> 7) ^ (h >>> 4);
+   }
+   
+   
+   ```
+
+   也有扩容操作，容量越大，花的时间越少，但是也浪费空间，所以要权衡。扩容用resize()实现，每次就扩大一倍，但是扩容就需要重新插入老的键值，这一步很花时间。因为是&运算重新取模，所以有快速的方法，看扩容之后的那一位1的地方，如果原来是1那么原位置不变，否则就原位置+原容量。
+
+   从jdk1.8开始，一个链表超出8个元素的时候就会转换为红黑树。
+
+   - Hashtable 使用 synchronized 来进行同步。
+   - HashMap 可以插入键为 null 的 Entry。
+   - HashMap 的迭代器是 fail-fast 迭代器。  fail-fast:直接在容器上进行遍历，fail-safe:这种遍历基于容器的一个克隆。因此，对容器内容的修改不影响遍历。
+   - HashMap 不能保证随着时间的推移 Map 中的元素次序是不变的，因为扩容会改变位置
+
 3. HashTable：和HashMap类似，但是是线程安全的，这个已经老了不应该用了。应该使用ConcurrentHashMap，线程安全，且效率高，因为用了分段锁。
-4. LinkedHashMap：双向链表维护元素顺序，顺序可以是插入的顺序或者是LRU的顺序。
+
+4. ConcurrentHashMap：线程安全，因为使用了分段锁，在多线程的时候可以访问不同分段的内容。分段数就是并发程度，默认是16.
+
+5. WeakHashMap：用来实现缓存，这一部分会被JVM回收。ConcurrentCache就有两部分，一部分是eden，一部分是longterm，longterm由WeakHashMap实现，在cache使用过程中，如下：
+
+   - 经常使用的对象放入 eden 中，eden 使用 ConcurrentHashMap 实现，不用担心会被回收（伊甸园）；
+   - 不常用的对象放入 longterm，longterm 使用 WeakHashMap 实现，这些老对象会被垃圾收集器回收。
+   - 当调用  get() 方法时，会先从 eden 区获取，如果没有找到的话再到 longterm 获取，当从 longterm 获取到就把对象放入 eden 中，从而保证经常被访问的节点不容易被回收。
+   - 当调用 put() 方法时，如果 eden 的大小超过了 size，那么就将 eden 中的所有对象都放入 longterm 中，利用虚拟机回收掉一部分不经常使用的对象。
+
+6. LinkedHashMap：本身是HashMap，双向链表维护元素顺序，顺序可以是插入的顺序或者是LRU的顺序。
 
 ### 二、容器中的设计模式
 
@@ -538,9 +740,133 @@ JDK是Java Development Kit，Java开发工具包，提供了Java的开发和运�
 
 1. 这点不懂，后面看
 
+## Java并发
+
+### 一、使用线程
+
+#### 1. 实现Runnable接口
+
+1. 这个接口实现只是作为一个Thread构造的参数，即我们Runnable之后需要new Thread，然后Thread.start()，就将它加入了就绪队列。Runnable的接口基础需要实现run方法，也就是我们的线程进行操作的时候真正进行的操作。
+
+#### 2. 实现Callable接口
+
+1. 和Runnable相比，有返回值，接口实现需要实现call函数，返回Integer
+
+   ```java
+   public static void main(String[] args) throws ExecutionException, InterruptedException {
+       MyCallable mc = new MyCallable();
+       FutureTask<Integer> ft = new FutureTask<>(mc);
+       Thread thread = new Thread(ft);
+       thread.start();
+       System.out.println(ft.get());
+   }
+   ```
+
+#### 3. 继承Thread类
+
+1. 因为Thread本身实现了Runnable接口，所以也要实现run，这时候只需要new一个Thread，然后就直接start就可以了。
+
+#### 4. 接口 or 类
+
+ 	实现接口再new Thread()更好，因为接口可以多继承，但是继承Thread类之后就不能再继承其他类了，而且直接继承整个类的话开销较大。所以一般我们用runnable接口。
+
+### 二、基础线程机制
+
+1. Executor 管理多个异步任务的执行，而无需程序员显式地管理线程的生命周期。这里的异步是指多个任务的执行互不干扰，不需要进行同步操作。
+
+   主要有三种 Executor：
+
+   - CachedThreadPool：一个任务创建一个线程；
+   - FixedThreadPool：所有任务只能使用固定大小的线程；
+   - SingleThreadExecutor：相当于大小为 1 的 FixedThreadPool。
+
+   ```java
+   public static void main(String[] args) {
+       ExecutorService executorService = Executors.newCachedThreadPool();
+       for (int i = 0; i < 5; i++) {
+           executorService.execute(new MyRunnable());
+       }
+       executorService.shutdown();
+   }
+   ```
+
+2. daemon，守护线程是程序运行时在后台提供服务的线程，不属于程序中不可或缺的部分。
+
+   当所有非守护线程结束时，程序也就终止，同时会杀死所有守护线程。
+
+   main() 属于非守护线程。
+
+   在线程启动之前使用 setDaemon() 方法可以将一个线程设置为守护线程。
+
+   ```java
+   public static void main(String[] args) {
+       Thread thread = new Thread(new MyRunnable());
+       thread.setDaemon(true);
+   }
+   ```
+
+3. sleep方法会休眠当前运行的线程，而不是t.sleep()这个t线程，sleep() 可能会抛出 InterruptedException，线程中抛出的所有异常都要在本地进行处理，不能跨线程处理。
+
+4. yield()，静态方法，表示自己已经完成了重要部分，可以让出资源，也就是建议调度器说可以让出资源给别的同等优先级的线程。
+
+### 三、中断
+
+#### 1.InterruptedException
+
+在run函数里面调用interrupt()函数，会给线程设置一个标志，如果不是在running状态，那么就会因为抛出这个异常从而结束本线程，这个方法对IO阻塞和synchronized无用。
+
+#### 2. interrupted()
+
+如果只是interrupt()函数，就是设置一个标识，这样不可以直接结束进程，调用这个方法就可以判断是否设置了标志，从而结束一个死循环。
+
+#### 3. Excutor的中断操作
+
+1. 用shutDown方法会等线程执行完毕关闭，如果是shutDownNow方法就相当于调用了excutor管理的所有线程的interrupt()方法，设置标记，抛出异常，从而马上结束。
+
+2. 如果只想中断 Executor 中的一个线程，可以通过使用 submit() 方法来提交一个线程，它会返回一个 Future<?> 对象，通过调用该对象的 cancel(true) 方法就可以中断线程。
+
+   ```java
+   Future<?> future = executorService.submit(() -> {
+       // ..
+   });
+   future.cancel(true);
+   
+   ```
+
+### 四、互斥同步
+
+Java提供了两种锁机制来实现互斥访问，一种是JVM实现的synchronized，一种是jdk实现的ReentrantLock。
+
+#### 1. synchronized关键字
+
+1. 
 
 
 
+
+
+
+
+
+
+
+
++++
+
+## 参考资料
+
+1. https://www.cyc2018.xyz/Java/Java 容器.html
+2. Eckel B. Java 编程思想 [M]. 机械工业出版社, 2002.
+3. Java Collection Framework
+4. Iterator 模式
+5. Java 8 系列之重新认识 HashMap
+6. What is difference between HashMap and Hashtable in Java?
+7. Java 集合之 HashMap
+8. The principle of ConcurrentHashMap analysis
+9. 探索 ConcurrentHashMap 高并发性的实现机制
+10. HashMap 相关面试题及其解答
+11. Java 集合细节（二）：asList 的缺陷
+12. Java Collection Framework – The LinkedList Class
 
 
 
