@@ -200,6 +200,7 @@ switch在Java 7开始支持String，但是不支持double、long、float等数�
 3. 接口内的成员限制都是static和final的，不允许除了public之外的其他限制符。
 4. 一个是类，一个是接口，不一样，里面的字段限制也不一样。
 5. 接口要求必须实现同一个方法，可以多重继承，Java 8开始，类有了默认的方法实现。
+6. 当要求所有方法有共性的时候用接口，当只是要求部分方法有共性的时候用抽象类。
 
 #### super
 
@@ -319,21 +320,21 @@ switch在Java 7开始支持String，但是不支持double、long、float等数�
 
       　　这是在各种Java泛型面试中，一开场你就会被问到的问题中的一个，主要集中在初级和中级面试中。那些拥有Java1.4或更早版本的开发背景的人都知道，在集合中存储对象并在使用前进行类型转换是多么的不方便。泛型防止了那种情况的发生。它提供了编译期的类型安全，确保你只能把正确类型的对象放入集合中，避免了在运行时出现ClassCastException。
 
-         　　2. Java的泛型是如何工作的 ? 什么是类型擦除 ?
+     　　2. Java的泛型是如何工作的 ? 什么是类型擦除 ?
     
-         　　这是一道更好的泛型面试题。泛型是通过类型擦除来实现的，编译器在编译时擦除了所有类型相关的信息，所以在运行时不存在任何类型相关的信息。例如List<String>在运行时仅用一个List来表示。这样做的目的，是确保能和Java 5之前的版本开发二进制类库进行兼容。你无法在运行时访问到类型参数，因为编译器已经把泛型类型转换成了原始类型。根据你对这个泛型问题的回答情况，你会得到一些后续提问，比如为什么泛型是由类型擦除来实现的或者给你展示一些会导致编译器出错的错误泛型代码。请阅读我的Java中泛型是如何工作的来了解更多信息。
+     　　这是一道更好的泛型面试题。泛型是通过类型擦除来实现的，编译器在编译时擦除了所有类型相关的信息，所以在运行时不存在任何类型相关的信息。例如List<String>在运行时仅用一个List来表示。这样做的目的，是确保能和Java 5之前的版本开发二进制类库进行兼容。你无法在运行时访问到类型参数，因为编译器已经把泛型类型转换成了原始类型。根据你对这个泛型问题的回答情况，你会得到一些后续提问，比如为什么泛型是由类型擦除来实现的或者给你展示一些会导致编译器出错的错误泛型代码。请阅读我的Java中泛型是如何工作的来了解更多信息。
     
-         　　3. 什么是泛型中的限定通配符和非限定通配符 ?
+     　　3. 什么是泛型中的限定通配符和非限定通配符 ?
     
-         　　这是另一个非常流行的Java泛型面试题。限定通配符对类型进行了限制。有两种限定通配符，一种是\<? extends T\>它通过确保类型必须是T的子类来设定类型的上界，另一种是\<? super T\>它通过确保类型必须是T的父类来设定类型的下界。泛型类型必须用限定内的类型来进行初始化，否则会导致编译错误。另一方面\<?>表示了非限定通配符，因为<?>可以用任意类型来替代。更多信息请参阅我的文章泛型中限定通配符和非限定通配符之间的区别。
+     　　这是另一个非常流行的Java泛型面试题。限定通配符对类型进行了限制。有两种限定通配符，一种是\<? extends T\>它通过确保类型必须是T的子类来设定类型的上界，另一种是\<? super T\>它通过确保类型必须是T的父类来设定类型的下界。泛型类型必须用限定内的类型来进行初始化，否则会导致编译错误。另一方面\<?>表示了非限定通配符，因为<?>可以用任意类型来替代。更多信息请参阅我的文章泛型中限定通配符和非限定通配符之间的区别。
     
-         　　4. List<? extends T>和List <? super T>之间有什么区别 ?
+     　　4. List<? extends T>和List <? super T>之间有什么区别 ?
     
-         　　这和上一个面试题有联系，有时面试官会用这个问题来评估你对泛型的理解，而不是直接问你什么是限定通配符和非限定通配符。这两个List的声明都是限定通配符的例子，List<? extends T>可以接受任何继承自T的类型的List，而List<? super T>可以接受任何T的父类构成的List。例如List<? extends Number>可以接受List<Integer>或List<Float>。在本段出现的连接中可以找到更多信息。
+     　　这和上一个面试题有联系，有时面试官会用这个问题来评估你对泛型的理解，而不是直接问你什么是限定通配符和非限定通配符。这两个List的声明都是限定通配符的例子，List<? extends T>可以接受任何继承自T的类型的List，而List<? super T>可以接受任何T的父类构成的List。例如List<? extends Number>可以接受List<Integer>或List<Float>。在本段出现的连接中可以找到更多信息。
     
-         　　5. 如何编写一个泛型方法，让它能接受泛型参数并返回泛型类型?
+     　　5. 如何编写一个泛型方法，让它能接受泛型参数并返回泛型类型?
     
-         　　编写泛型方法并不困难，你需要用泛型类型来替代原始类型，比如使用T, E or K,V等被广泛认可的类型占位符。泛型方法的例子请参阅Java集合类框架。最简单的情况下，一个泛型方法可能会像这样:
+     　　编写泛型方法并不困难，你需要用泛型类型来替代原始类型，比如使用T, E or K,V等被广泛认可的类型占位符。泛型方法的例子请参阅Java集合类框架。最简单的情况下，一个泛型方法可能会像这样:
 
    ```java
          public V put(K key, V value) {
@@ -500,22 +501,19 @@ JDK是Java Development Kit，Java开发工具包，提供了Java的开发和运�
        ```
 
    	4. ```java
-         transient Object[] elementData; // non-private to simplify nested class access
-         //表示不可以被序列化
+           transient Object[] elementData; // non-private to simplify nested class access
+           //表示不可以被序列化
          ```
-   ```
-       
-   ArrayList 实现了 writeObject() 和 readObject() 来控制只序列化数组中有元素填充那部分内容。
-       
-   序列化时需要使用 ObjectOutputStream 的 writeObject() 将对象转换为字节流并输出。而 writeObject() 方法在传入的对象存在 writeObject() 的时候会去反射调用该对象的 writeObject() 来实现序列化。反序列化使用的是  ObjectInputStream 的 readObject() 方法，原理类似。
-       
-       ​```java
-       ArrayList list = new ArrayList();
-       ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file));
-       oos.writeObject(list);
-   ```
-       
-       在序列化过程中需要对比前后的modCount是否改变，如果改变需要抛出异常。
+         
+         ArrayList 实现了 writeObject() 和 readObject() 来控制只序列化数组中有元素填充那部分内容。
+         序列化时需要使用 ObjectOutputStream 的 writeObject() 将对象转换为字节流并输出。而 writeObject() 方法在传入的对象存在 writeObject() 的时候会去反射调用该对象的 writeObject() 来实现序列化。反序列化使用的是  ObjectInputStream 的 readObject() 方法，原理类似。 
+         
+         ```java
+         ArrayList list = new ArrayList();
+         ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file));
+         oos.writeObject(list);
+         ```
+         在序列化过程中需要对比前后的modCount是否改变，如果改变需要抛出异常。
 
 2. Vector：线程安全的，和ArrayList类似。用了synchronized关键字。
 
