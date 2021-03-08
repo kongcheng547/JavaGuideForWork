@@ -323,15 +323,15 @@ switch在Java 7开始支持String，但是不支持double、long、float等数�
      　　2. Java的泛型是如何工作的 ? 什么是类型擦除 ?
     
      　　这是一道更好的泛型面试题。泛型是通过类型擦除来实现的，编译器在编译时擦除了所有类型相关的信息，所以在运行时不存在任何类型相关的信息。例如List<String>在运行时仅用一个List来表示。这样做的目的，是确保能和Java 5之前的版本开发二进制类库进行兼容。你无法在运行时访问到类型参数，因为编译器已经把泛型类型转换成了原始类型。根据你对这个泛型问题的回答情况，你会得到一些后续提问，比如为什么泛型是由类型擦除来实现的或者给你展示一些会导致编译器出错的错误泛型代码。请阅读我的Java中泛型是如何工作的来了解更多信息。
-    
+        
      　　3. 什么是泛型中的限定通配符和非限定通配符 ?
     
      　　这是另一个非常流行的Java泛型面试题。限定通配符对类型进行了限制。有两种限定通配符，一种是\<? extends T\>它通过确保类型必须是T的子类来设定类型的上界，另一种是\<? super T\>它通过确保类型必须是T的父类来设定类型的下界。泛型类型必须用限定内的类型来进行初始化，否则会导致编译错误。另一方面\<?>表示了非限定通配符，因为<?>可以用任意类型来替代。更多信息请参阅我的文章泛型中限定通配符和非限定通配符之间的区别。
-    
+        
      　　4. List<? extends T>和List <? super T>之间有什么区别 ?
     
      　　这和上一个面试题有联系，有时面试官会用这个问题来评估你对泛型的理解，而不是直接问你什么是限定通配符和非限定通配符。这两个List的声明都是限定通配符的例子，List<? extends T>可以接受任何继承自T的类型的List，而List<? super T>可以接受任何T的父类构成的List。例如List<? extends Number>可以接受List<Integer>或List<Float>。在本段出现的连接中可以找到更多信息。
-    
+        
      　　5. 如何编写一个泛型方法，让它能接受泛型参数并返回泛型类型?
     
      　　编写泛型方法并不困难，你需要用泛型类型来替代原始类型，比如使用T, E or K,V等被广泛认可的类型占位符。泛型方法的例子请参阅Java集合类框架。最简单的情况下，一个泛型方法可能会像这样:
@@ -503,6 +503,7 @@ JDK是Java Development Kit，Java开发工具包，提供了Java的开发和运�
    	4. ```java
            transient Object[] elementData; // non-private to simplify nested class access
            //表示不可以被序列化
+           ```
          ```
          
          ArrayList 实现了 writeObject() 和 readObject() 来控制只序列化数组中有元素填充那部分内容。
@@ -837,7 +838,165 @@ Java提供了两种锁机制来实现互斥访问，一种是JVM实现的synchro
 
 #### 1. synchronized关键字
 
-1. 
+1. 对一个代码块同步，即在一个对象里面的内部代码块同步
+
+   ```java
+   public class SynchronizedExample {
+   
+       public void func1() {
+           synchronized (this) {
+               for (int i = 0; i < 10; i++) {
+                   System.out.print(i + " ");
+               }
+           }
+       }
+   }
+   
+   ```
+
+   此时只能对这一个对象有用，即在运行这一个对象的时候才可以，若是两个对象则不可。比较好理解，就是虽然是一个代码块，但是只属于一个对象，而不是所有对象共有这一个地方。有了此关键字，则一个线程进入的时候另一个线程必须等待。
+
+2. 对一个方法同步，如
+
+   ```java
+   public synchronized void func()
+   ```
+
+   也是只对同一个对象的运行有限制。但如果是静态方法那就是对不同对象使用都有限制。
+
+3. 对一个内部类同步，则作用于整个类，也就是说两个对象同时使用的时候会受到同步限制。
+
+#### ReentrantLock
+
+这是JUC里面的锁，即java.util.concurrent。和Lock的关系就和List和ArrayList的关系一样，子类和父类。
+
+#### 区别比较
+
+1. synchronized是JVM实现的，ReentrantLock是JDK实现的。
+2. 性能两者大致相同。
+3. 当线程一直在等待另一个线程释放锁的时候，ReentrantLock可以放弃等待，但是synchronized不可以。
+4. 公平锁：是否按照申请时间上锁。synchronized不公平，ReentrantLock可选是否公平。
+5. 一个ReentrantLock可以绑定多个Condition对象。
+6. **优先使用synchronized，因为是JVM本身实现的，但是ReentrantLock由jdk实现，jdk版本改变可能就不支持了。另外synchronized锁会由JVM确保释放**
+
+### 五、线程之间的协作
+
+#### join()
+
+1. 在线程中用此方法，会把这个线程挂起，而不是处于就绪队列等待，直到目标结束。即cpu不会给它分配时间，一直等着另一个线程结束。
+
+    1、废弃的方法
+
+   ```java
+    thread.suspend():该方法不会释放线程所暂用的资源。如果使用该方法将某个线程挂起，可能会使其他等待资源的线程死锁。暂停的意思
+   
+    thread.resume():方法本身没有问题，但是不能独立于suspend()方法使用 恢复的意思
+   ```
+
+    2、日常使用的方法
+
+   ```java
+   wait() //暂停执行、放弃已获得的锁、进入等待状态
+   
+   notify() //随机唤醒一个在等待锁的线程 通知的意思
+   
+   notifyAll() //唤醒所有在等待锁的线程，自行抢占cpu
+   ```
+
+#### wait() notify()等函数
+
+1. 调用wait()函数也会挂起，然后其他线程用notify()函数来唤醒挂起的线程。这些都是Object的方法，即大家都有的方法。这两个函数的使用都必须在同步方法里，比如方法加入synchronized限制。
+2. wait()的时候，会释放相关的同步锁，否则会造成死锁(别的一直等待本线程释放锁)。
+3. wait()来自object，但是sleep来自Thread。sleep执行对象是当前运行的线程，wait()执行的是.符号前面的线程。wait会释放锁，但是sleep不会释放锁。
+
+#### await()  signal() signalAll()等函数
+
+1. JUC提供了Condition类实现线程之间的协调。可以在Condition上面用await()方法让线程等待，然后其他线程用signal()来唤醒。await()比wait()好就好在可以指定自己的等待条件。
+2. 创建的方法是先创建一个Lock对象，如ReentrantLock，然后用lock.newCondition()创建一个condition对象。在函数里面就可以使用condition.await()来锁住等待别的进程唤醒。
+
+### 六、线程状态
+
+1. 线程只能处于一种状态，但是这只是JVM的线程，而不是实际操作系统的线程。
+2. 新建状态
+3. 可运行状态Runnable，正在JVM里面运行，但是在实际的操作系统里面可能并没有运行，只是在对其进行资源调度，在操作系统里面调度资源也算是在JVM里面运行。
+4. 阻塞Blocked，在等待别的线程释放锁，释放了本线程才可以进入可运行状态
+5. 无限期等待，waiting，等待别的线程唤醒。和阻塞区别是这个是自愿的，阻塞是被动的等待。
+6. 限期等待，对于sleep方法、wait方法、join方法设置时间，就可以达到限期等待，时间到了就恢复运行。
+7. 死亡Terminated，结束了运行。
+
+### 七、JUC-AQS
+
+JUC提高了并发性能，AQS是JUC的核心。java.util.concurrent包。AbstractQueuedSynchronizer（AQS）
+
+这个得重新看。
+
+#### CountDownLatch
+
+1. 就是一个计数器，一开始设定初值，每次调用某个方法之后数值减一，当减为0的时候，其他await的函数就可以被唤醒，这个用来做有数量的进程的控制。等待给定多个数目之后唤醒对应的线程。
+
+   ```java
+   public class CountdownLatchExample {
+   
+       public static void main(String[] args) throws InterruptedException {
+           final int totalThread = 10;
+           CountDownLatch countDownLatch = new CountDownLatch(totalThread);
+           ExecutorService executorService = Executors.newCachedThreadPool();
+           for (int i = 0; i < totalThread; i++) {
+               executorService.execute(() -> {
+                   System.out.print("run..");
+                   countDownLatch.countDown();//
+               });
+           }
+           countDownLatch.await();//数值减为0之后这里才会运行
+           System.out.println("end");
+           executorService.shutdown();
+       }
+   }
+   
+   ```
+
+#### CyclicBarrier
+
+1. 控制多个线程等待，一开始有个数值，和前面类似，也是计数器，每个线程调用一次await()就减一，直到为0就唤醒所有线程。这个叫循环屏障，是因为reset()函数可以让其恢复数值继续使用。reset可以用是因为类内部有个成员存储初始值。
+
+   ```java
+   
+   public class CyclicBarrierExample {
+   
+       public static void main(String[] args) {
+           final int totalThread = 10;
+           CyclicBarrier cyclicBarrier = new CyclicBarrier(totalThread);
+           ExecutorService executorService = Executors.newCachedThreadPool();
+           for (int i = 0; i < totalThread; i++) {
+               executorService.execute(() -> {
+                   System.out.print("before..");
+                   try {
+                       cyclicBarrier.await();//这里运行一次减一，然后再往前看循环，直到为0，才会越过此处，输出after
+                   } catch (InterruptedException | BrokenBarrierException e) {
+                       e.printStackTrace();
+                   }
+                   System.out.print("after..");
+               });
+           }
+           executorService.shutdown();
+       }
+   }
+   
+   ```
+
+#### Semaphore
+
+1. 类似于操作系统的信号量。
+
+### 八、JUC-其他组件
+
+#### FutureTask
+
+#### BlockingQueue
+
+#### ForkJoin
+
+### 九、Java内存模型
 
 
 
