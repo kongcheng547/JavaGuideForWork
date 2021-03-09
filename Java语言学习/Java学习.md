@@ -323,15 +323,15 @@ switch在Java 7开始支持String，但是不支持double、long、float等数�
      　　2. Java的泛型是如何工作的 ? 什么是类型擦除 ?
     
      　　这是一道更好的泛型面试题。泛型是通过类型擦除来实现的，编译器在编译时擦除了所有类型相关的信息，所以在运行时不存在任何类型相关的信息。例如List<String>在运行时仅用一个List来表示。这样做的目的，是确保能和Java 5之前的版本开发二进制类库进行兼容。你无法在运行时访问到类型参数，因为编译器已经把泛型类型转换成了原始类型。根据你对这个泛型问题的回答情况，你会得到一些后续提问，比如为什么泛型是由类型擦除来实现的或者给你展示一些会导致编译器出错的错误泛型代码。请阅读我的Java中泛型是如何工作的来了解更多信息。
-        
+     
      　　3. 什么是泛型中的限定通配符和非限定通配符 ?
     
      　　这是另一个非常流行的Java泛型面试题。限定通配符对类型进行了限制。有两种限定通配符，一种是\<? extends T\>它通过确保类型必须是T的子类来设定类型的上界，另一种是\<? super T\>它通过确保类型必须是T的父类来设定类型的下界。泛型类型必须用限定内的类型来进行初始化，否则会导致编译错误。另一方面\<?>表示了非限定通配符，因为<?>可以用任意类型来替代。更多信息请参阅我的文章泛型中限定通配符和非限定通配符之间的区别。
-        
+     
      　　4. List<? extends T>和List <? super T>之间有什么区别 ?
     
      　　这和上一个面试题有联系，有时面试官会用这个问题来评估你对泛型的理解，而不是直接问你什么是限定通配符和非限定通配符。这两个List的声明都是限定通配符的例子，List<? extends T>可以接受任何继承自T的类型的List，而List<? super T>可以接受任何T的父类构成的List。例如List<? extends Number>可以接受List<Integer>或List<Float>。在本段出现的连接中可以找到更多信息。
-        
+     
      　　5. 如何编写一个泛型方法，让它能接受泛型参数并返回泛型类型?
     
      　　编写泛型方法并不困难，你需要用泛型类型来替代原始类型，比如使用T, E or K,V等被广泛认可的类型占位符。泛型方法的例子请参阅Java集合类框架。最简单的情况下，一个泛型方法可能会像这样:
@@ -924,7 +924,7 @@ Java提供了两种锁机制来实现互斥访问，一种是JVM实现的synchro
 6. 限期等待，对于sleep方法、wait方法、join方法设置时间，就可以达到限期等待，时间到了就恢复运行。
 7. 死亡Terminated，结束了运行。
 
-### 七、JUC-AQS
+### 七、JUC-AQS 需要认真看
 
 JUC提高了并发性能，AQS是JUC的核心。java.util.concurrent包。AbstractQueuedSynchronizer（AQS）
 
@@ -992,11 +992,256 @@ JUC提高了并发性能，AQS是JUC的核心。java.util.concurrent包。Abstra
 
 #### FutureTask
 
+运行时间较长时，就用这个组件进行运行，等到主线程结束之后再去进行查询这个组件的线程的结果，
+
+```java
+public class FutureTaskExample {
+
+    public static void main(String[] args) throws ExecutionException, InterruptedException {
+        FutureTask<Integer> futureTask = new FutureTask<Integer>(new Callable<Integer>() {
+            @Override
+            //一个很长的计算，用FutureTask包装
+            public Integer call() throws Exception {
+                int result = 0;
+                for (int i = 0; i < 100; i++) {
+                    Thread.sleep(10);
+                    result += i;
+                }
+                return result;
+            }
+        });
+
+        Thread computeThread = new Thread(futureTask);
+        computeThread.start();//虽然先算，但是结果后出现
+
+        Thread otherThread = new Thread(() -> {
+            System.out.println("other task is running...");
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        });
+        otherThread.start();//等到本线程结束再进行查询
+        System.out.println(futureTask.get());
+    }
+}
+```
+
 #### BlockingQueue
+
+这个接口实现了三个阻塞队列，LinkedBlockingQueue，ArrayBlockQueue(固定长度)，PriorityBlockingQueue，后面这个是优先级队列。
+
+提供了take方法和put方法，如果队列是空的就阻塞take方法，如果满了就阻塞put方法，所以就可以用来实现消费者生产者问题。
 
 #### ForkJoin
 
+用于并行计算里面，和MapReduce类似，把大的计算任务拆分为小任务并行计算
+
+```java
+public class ForkJoinExample extends RecursiveTask<Integer> {
+
+    private final int threshold = 5;
+    private int first;
+    private int last;
+
+    public ForkJoinExample(int first, int last) {
+        this.first = first;
+        this.last = last;
+    }
+
+    @Override
+    protected Integer compute() {
+        int result = 0;
+        if (last - first <= threshold) {
+            // 任务足够小则直接计算
+            for (int i = first; i <= last; i++) {
+                result += i;
+            }
+        } else {
+            // 拆分成小任务
+            int middle = first + (last - first) / 2;
+            ForkJoinExample leftTask = new ForkJoinExample(first, middle);
+            ForkJoinExample rightTask = new ForkJoinExample(middle + 1, last);
+            leftTask.fork();
+            rightTask.fork();
+            result = leftTask.join() + rightTask.join();
+        }
+        return result;
+    }
+}
+public static void main(String[] args) throws ExecutionException, InterruptedException {
+    ForkJoinExample example = new ForkJoinExample(1, 10000);
+    ForkJoinPool forkJoinPool = new ForkJoinPool();//需要用pool进行管理
+    Future result = forkJoinPool.submit(example);
+    System.out.println(result.get());
+}
+```
+
+ForkJoin 使用 ForkJoinPool 来启动，它是一个特殊的线程池，线程数量取决于 CPU 核数。
+
+ForkJoinPool的模型就是实现一个工作窃取算法，本身做好了的就去别的线程的双端队列里面拿出来最晚的一个任务到自己身上执行。
+
 ### 九、Java内存模型
+
+这个模型试图屏蔽各种硬件和操作系统的内存访问差异，从而让Java在各种平台下可以获得一样的内存访问结果。
+
+#### 主内存和工作内存
+
+1. 主内存是Main Memory，每个线程有自己的工作内存，一般就是cache或者是一部分寄存器。线程之间通信由主内存实现。
+
+2. 有以下相关函数：
+
+   <img src="Java学习.assets/8b7ebbad-9604-4375-84e3-f412099d170c.png" alt="img" style="zoom:50%;" />
+
+   - read：把一个变量的值从主内存传输到工作内存中
+   - load：在 read 之后执行，把 read 得到的值放入工作内存的变量副本中
+   - use：把工作内存中一个变量的值传递给执行引擎
+   - assign：把一个从执行引擎接收到的值赋给工作内存的变量
+   - store：把工作内存的一个变量的值传送到主内存中
+   - write：在 store 之后执行，把 store 得到的值放入主内存的变量中
+   - lock：作用于主内存的变量
+   - unlock
+
+#### 内存模型三大特性
+
+1. 原子性，以上操作都是原子的操作
+
+   int等类型在多线程下不是线程安全的，需要用AtomicInteger等，就是安全的，还有就是对相关的方法用synchronized关键字，就能同步访问，它在内存间的操作就是我们上面说的lock和unlock，在虚拟机上面对应的字节码指令是monitorenter和monitorexit。
+
+2. 可见性，即一个线程修改了一个值，那么其他线程可以马上看到这个修改。实现的方法是在变量修改后将新的值同步回主存，在变量读取前从主存刷新变量值来实现可见性的。实现的方式有三种
+
+   1. volatile，但是不能保证原子性
+   2. synchronized，即对一个变量unlock的时候，要将变量更改同步回去
+   3. final，一旦初始化完成且没有this逃逸(其他线程通过this引用访问初始化一半的对象)
+
+3. 有序性，指的是在一个线程里面观察，所有操作都是有序的，但是因为Java内存模型里面允许编译器和处理器更改指令顺序提高效率，所有多线程的时候结果就不能得到保证。于是用volatile关键字，添加内存屏障，禁止指令顺序更改。也可以用synchronized关键字，因为保证一个时刻只能有一个线程执行代码，相当于就是按顺序执行。
+
+#### 先行发生原则
+
+1. 单一线程原则，即先来后到
+2. 管程锁定原则，即一个锁必须先解锁才能再上锁
+3. volatile变量原则，对一个volatile变量的写操作先于读操作
+4. 线程启动原则，线程的start()方法先于任何此线程的操作
+5. 线程加入原则，Thread对象结束才会返回到join方法。
+6. 线程中断规则，先有interrupt()方法后才有代码检测到中断的发生
+7. 对象终结原则，一个对象初始化比finalize()方法先完成，先于开始
+8. 传递性，先后发生顺序是可传递的，先后性不可变
+
+### 十、线程安全 需要认真看
+
+线程不管怎么多线程运行，不需要自行写同步代码，都可以同步，这就是线程安全
+
+线程安全的实现有以下几种方式：
+
+1. 不可变，immutable，不可变则一定线程安全，因为不能进行更改，不会有临界区问题，只能读。多线程之下应该尽量让对象不可变，来满足线程安全。不可变的如下：final String 枚举类型 Number部分子类如Long Double BigInteger BigDecimal等，但是AtomicInteger和AtomicLong是可变的，也是线程安全的。
+
+   对于集合，可以使用 Collections.unmodifiableXXX() 方法来获取一个不可变的集合。如Map，这个的实现原理就是先拷贝所有集合内容，然后再在所有的修改本集合的函数里面抛出异常。
+
+2. 互斥同步，用synchronized和ReentrantLock实现
+
+3. 非阻塞同步，互斥同步总是有一个阻塞再唤醒的过程，这是性能的损失，是一种悲观的并发策略，也就是说不管有没有同步问题，我都认为可能会出问题，所以这就会导致性能的损失。(JVM会优化掉一些不必要的锁)。所以我们用一种乐观的操作来实现，基于冲突检测，先进行操作，如果没有其他线程争用数据，就成功了，否则就需要进行补偿，不断地重试直到成功为止。这种乐观的并发策略不需要阻塞线程，所以叫非阻塞同步
+
+#### 非阻塞同步 需要仔细学
+
+1. CAS，乐观锁需要操作和冲突检测的步骤是原子性的，这里就不能用互斥同步的方式来保证原子性了，只有靠硬件完成。典型的硬件原子性操作就是CAS 比较并交换 Compare and swap，这个指令需要三个操作数，内存地址V，旧的预期值A，新的值B，只有V地址的值等于A才会把V的值更新为B
+
+2. AtomicInteger，JUC里面的整数原子类，调用了Unsafe的CAS操作。
+
+   ```java
+   private AtomicInteger cnt = new AtomicInteger();
+   
+   public void add() {
+       cnt.incrementAndGet();
+   }
+   ```
+
+   以下代码是 incrementAndGet() 的源码，它调用了 Unsafe 的 getAndAddInt() 。
+
+   ```java
+   public final int incrementAndGet() {
+       return unsafe.getAndAddInt(this, valueOffset, 1) + 1;
+   }
+   ```
+
+   以下代码是 getAndAddInt() 源码，var1 指示对象内存地址，var2 指示该字段相对对象内存地址的偏移，var4  指示操作需要加的数值，这里为 1。通过 getIntVolatile(var1, var2) 得到旧的预期值，通过调用  compareAndSwapInt() 来进行 CAS 比较，如果该字段内存地址中的值等于 var5，那么就更新内存地址为 var1+var2  的变量为 var5+var4。
+
+   **可以看到 getAndAddInt() 在一个循环中进行，发生冲突的做法是不断的进行重试。**
+
+   ```java
+   public final int getAndAddInt(Object var1, long var2, int var4) {
+       int var5;
+       do {
+           var5 = this.getIntVolatile(var1, var2);//获得值
+       } while(!this.compareAndSwapInt(var1, var2, var5, var5 + var4));
+   
+       return var5;
+   }//1 2是地址，4是要加的值，5是老值 1和2
+   ```
+
+3. ABA，就是初值是A，然后改为了B，后来又改回了A，呢么CAS操作就会觉得没有发生过改变，JUC包提供了带标记的原子类AtomicStampedReference来解决这个问题，可以通过控制变量值的版本来保证CAS的正确性，大部分情况下ABA不会影响程序并发的正确性。ABA问题用传统的互斥同步更高效。
+
+#### 无同步方案
+
+如果一个方法本身不涉及共享数据，那就不需要同步来保证正确性。
+
+1. 栈封闭，局部变量因为是虚拟机栈里面，地方限制，线程私有，所以不需要同步。
+
+2. 线程本地存储Thread Local Storage。尽量让一些事务在一个线程里面进行，一个线程里面完成，如一个服务器监听到连接请求，就开一个新线程处理。可以用java.lang.ThreadLocal类来实现线程本地存储功能。本地的线程的东西就不会受到别的线程的影响。
+
+   <img src="Java学习.assets/6782674c-1bfe-4879-af39-e9d722a95d39.png" alt="img" style="zoom:50%;" />
+
+   每一个线程都有自己的Map，当调用线程的set函数的时候，先得到map对象，再去map里面寻找到键值，如果有就改值，没有就插入进map。这个并不能解决多线程并发问题，只是对一些自己的东西，不共享的东西，有一个保护。
+
+   在线程池下，因为ThreadLocalMap底层数据结构导致这个有泄露内存的风险，应该尽可能在每次使用这个ThreadLocal之后手动调用remove()函数，防止内存泄露
+
+3. 可重入代码 Reentrant Code，纯代码，可以在任何时候中断它，转而去执行别的代码，也就是可以随意切断运行，回来之后不会有改变。这些就是因为它不依赖一些共有的资源，用到的状态量都由参数传入而不是全局变量一类的东西，不会调用不可重入的方法等。
+
+### 十一、锁优化
+
+主要是JVM对synchronized的优化
+
+#### 自旋锁
+
+1. 互斥同步阻塞再进入消耗很大，所以自旋锁出现了，就是一直等待，但是时间较短，如果这段时间获得了锁，就可以避免线程的切换。但是它需要忙于循环操作，占用cpu时间，只适用于共享数据锁定时间短的情况。
+
+#### 锁消除
+
+1. 也就是一个优化，对于一些不需要锁的变量或者内存，人为加了锁，那么JVM会检索之后消除锁。如String的拼接+号，会转化为StringBuffer对象的连续append()操作，每个append里面都有一个同步块，虚拟机会观察里面进行更改的变量，发现它只是存在方法内部，所以就会消除这个锁。
+
+#### 锁粗化
+
+1. 也就是发现连续的对一个加锁，不断地加锁再解锁很麻烦，那就会转化为在作用范围内的一把大锁，直接锁住这么长时间，而不是频繁地加锁解锁。
+
+#### 轻量级锁
+
+1. jdk1.6开始有了四个状态：无锁unlocked 001，偏向锁biasble 101，轻量级锁lightweight locked 00，重量级锁inflated 10。11状态是marked for gc
+2. 轻量级锁是相对于重量级锁而言的，因为大多数锁在用的时候都不会被用到，不存在竞争，因此就不需要互斥量的操作，所以就用轻量级锁，先用CAS操作，如果CAS失败了再用互斥量进行同步
+3. CAS失败之后就会进行检查，若是有两个以上的线程争用一个锁，那轻量级锁就不再有效，需要膨胀为重量级锁。
+
+#### 偏向锁
+
+1. 意思就是当一个线程申请到锁，就成为偏向锁，做什么操作都不需要同步，当另一个线程需要申请此资源的时候，就会撤销偏向锁，变成正常的锁。这个就是为了防止本身没什么并发操作的时候却浪费了太多的资源。
+
+### 十二、多线程开发的技巧
+
+- 给线程起个有意义的名字，这样可以方便找 Bug。
+- 缩小同步范围，从而减少锁争用。例如对于 synchronized，应该尽量使用同步块而不是同步方法。就是应该是对方法内的一部分代码进行同步，而不是整个方法，这样减小占用。
+- 多用同步工具少用 wait() 和 notify()。首先，CountDownLatch, CyclicBarrier, Semaphore 和  Exchanger 这些同步类简化了编码操作，而用 wait() 和 notify()  很难实现复杂控制流；其次，这些同步类是由最好的企业编写和维护，在后续的 JDK 中还会不断优化和完善。同步组件要牢记。
+- 使用 BlockingQueue 实现生产者消费者问题。阻塞队列，只有数值不为0才可用，满了只有消耗了才能放进去。
+- 多用并发集合少用同步集合，例如应该使用 ConcurrentHashMap 而不是 Hashtable。
+- 使用本地变量和不可变类来保证线程安全。本地和不可变都可以
+- 使用线程池而不是直接创建线程，这是因为创建线程代价很高，线程池可以有效地利用有限的线程来启动任务。线程池优化。
+
+## Java虚拟机
+
+
+
+
+
+
+
+
 
 
 
