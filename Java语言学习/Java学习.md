@@ -79,9 +79,9 @@
    3. 存储方式及位置的不同，基本类型是直接存储变量的值保存在堆栈中能高效的存取，封装类型需要通过引用指向实例，具体的实例保存在堆中。
    4. 初始值的不同，**封装类型的初始值为null，基本类型的的初始值视具体的类型而定，比如int类型的初始值为0**，boolean类型为false；
    5. 使用方式的不同，比如与集合类合作使用时只能使用包装类型。
-   6. 什么时候该用包装类，什么时候用基本类型，看基本的业务来定：这个字段允允许null值，就需要使用包装类型，如果不允许null值，，使用基本类型就可以了，用到比如泛型和反射调用函数，就需要用包装类！
+   6. 什么时候该用包装类，什么时候用基本类型，看基本的业务来定：这个字段允许null值，就需要使用包装类型，如果不允许null值，使用基本类型就可以了，用到比如泛型和反射调用函数，就需要用包装类！
 
-   对于Integer，-127-128有缓存，所以Integer i1=127,i2=127两个是一样的。但是用new就是不等于的。但是对于double等没有缓存的来说，这样就算错的。Byte全都有，char和boolean和short都是在-128-127有缓存。
+   对于Integer，-127-128有缓存，所以Integer i1=127,i2=127两个是一样的。但是用new就是不等于的。但是对于double等没有缓存的来说，这样就算错的。Byte全都有，char和boolean和short都是在-128-127有缓存。指的是==判断的时候。
 
 ### 二、String
 
@@ -370,7 +370,7 @@ switch在Java 7开始支持String，但是不支持double、long、float等数�
 
    ​       List\<String> rawList = new ArrayList()
 
-### 十、注解***Annontation***
+### 十、注解***Annontation*** 需要再看
 
 https://www.cnblogs.com/acm-bingzi/p/javaAnnotation.html
 
@@ -400,7 +400,7 @@ https://www.cnblogs.com/acm-bingzi/p/javaAnnotation.html
 #### Java和C++的区别
 
 - Java 是纯粹的面向对象语言，所有的对象都继承自 java.lang.Object，C++ 为了兼容 C 即支持面向对象也支持面向过程。
-- Java 通过虚拟机从而实现跨平台特性，但是 C++ 依赖于特定的平台。
+- Java 通过虚拟机从而实现跨平台特性，但是 C++ 依赖于特定的平台。是因为Java虚拟机将java程序翻译为不同的字节码，实现了在不同平台上面的通用。
 - Java 没有指针，它的引用可以理解为安全指针，而 C++ 具有和 C 一样的指针。
 - Java 支持自动垃圾回收，而 C++ 需要手动回收。
 - Java 不支持多重继承，只能通过实现多个接口来达到相同目的，而 C++ 支持多重继承。
@@ -487,33 +487,33 @@ JDK是Java Development Kit，Java开发工具包，提供了Java的开发和运�
    	3. 删除元素
 
        ```java
-       public E remove(int index) {
-           rangeCheck(index);
-           modCount++;
-           E oldValue = elementData(index);
-           int numMoved = size - index - 1;
-           if (numMoved > 0)
-               System.arraycopy(elementData, index+1, elementData, index, numMoved);
-           elementData[--size] = null; // clear to let GC do its work
-           return oldValue;
-       }
-       //意思是删除一个之后要将后面的都复制到前面来，所以耗时很大
+           public E remove(int index) {
+               rangeCheck(index);
+               modCount++;
+               E oldValue = elementData(index);
+               int numMoved = size - index - 1;
+               if (numMoved > 0)
+                   System.arraycopy(elementData, index+1, elementData, index, numMoved);
+               elementData[--size] = null; // clear to let GC do its work
+               return oldValue;
+           }
+           //意思是删除一个之后要将后面的都复制到前面来，所以耗时很大
        ```
 
    	4. ```java
            transient Object[] elementData; // non-private to simplify nested class access
            //表示不可以被序列化
            ```
-         ```
-         
-         ArrayList 实现了 writeObject() 和 readObject() 来控制只序列化数组中有元素填充那部分内容。
-         序列化时需要使用 ObjectOutputStream 的 writeObject() 将对象转换为字节流并输出。而 writeObject() 方法在传入的对象存在 writeObject() 的时候会去反射调用该对象的 writeObject() 来实现序列化。反序列化使用的是  ObjectInputStream 的 readObject() 方法，原理类似。 
-         
+           
+            ArrayList 实现了 writeObject() 和 readObject() 来控制只序列化数组中有元素填充那部分内容。
+            序列化时需要使用 ObjectOutputStream 的 writeObject() 将对象转换为字节流并输出。而 writeObject() 方法在传入的对象存在 writeObject() 的时候会去反射调用该对象的 writeObject() 来实现序列化。反序列化使用的是  ObjectInputStream 的 readObject() 方法，原理类似。 
+       
          ```java
          ArrayList list = new ArrayList();
          ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file));
          oos.writeObject(list);
          ```
+       
          在序列化过程中需要对比前后的modCount是否改变，如果改变需要抛出异常。
 
 2. Vector：线程安全的，和ArrayList类似。用了synchronized关键字。
@@ -584,6 +584,8 @@ JDK是Java Development Kit，Java开发工具包，提供了Java的开发和运�
    ```
 
    所以它不支持随机访问，删除和插入代价小。
+   
+   poll()方法和offer()方法，还有removeLast()之类，peek()方法
 
 ##### 3. Queue
 
@@ -644,7 +646,7 @@ JDK是Java Development Kit，Java开发工具包，提供了Java的开发和运�
    
        public final int hashCode() {
            return Objects.hashCode(getKey()) ^ Objects.hashCode(getValue());
-           //计算hash值，并且将key和value计算之后的值异或一下
+           //计算hash值，并且将key和value计算之后的值异或一下，key和value都要进行hash值的计算
        }
    
        public final String toString() {
@@ -713,6 +715,22 @@ JDK是Java Development Kit，Java开发工具包，提供了Java的开发和运�
 
    也有扩容操作，容量越大，花的时间越少，但是也浪费空间，所以要权衡。扩容用resize()实现，每次就扩大一倍，但是扩容就需要重新插入老的键值，这一步很花时间。因为是&运算重新取模，所以有快速的方法，看扩容之后的那一位1的地方，如果原来是1那么原位置不变，否则就原位置+原容量。
 
+   ```java
+   void addEntry(int hash, K key, V value, int bucketIndex) {
+   　　　　//1、判断当前个数是否大于等于阈值
+   　　　　//2、当前存放是否发生哈希碰撞
+   　　　　//如果上面两个条件否发生，那么就扩容
+   　　　　if ((size >= threshold) && (null != table[bucketIndex])) {
+   　　　　　　//扩容，并且把原来数组中的元素重新放到新数组中
+   　　　　　　resize(2 * table.length);
+   　　　　　　hash = (null != key) ? hash(key) : 0;
+   　　　　　　bucketIndex = indexFor(hash, table.length);
+   　　　　}
+    
+   　　　　createEntry(hash, key, value, bucketIndex);
+   　　}
+   ```
+
    从jdk1.8开始，一个链表超出8个元素的时候就会转换为红黑树。
 
    - Hashtable 使用 synchronized 来进行同步。
@@ -731,7 +749,7 @@ JDK是Java Development Kit，Java开发工具包，提供了Java的开发和运�
    - 当调用  get() 方法时，会先从 eden 区获取，如果没有找到的话再到 longterm 获取，当从 longterm 获取到就把对象放入 eden 中，从而保证经常被访问的节点不容易被回收。
    - 当调用 put() 方法时，如果 eden 的大小超过了 size，那么就将 eden 中的所有对象都放入 longterm 中，利用虚拟机回收掉一部分不经常使用的对象。
 
-6. LinkedHashMap：本身是HashMap，双向链表维护元素顺序，顺序可以是插入的顺序或者是LRU的顺序。
+6. LinkedHashMap：本身是HashMap，双向链表维护元素顺序，顺序可以是插入的顺序或者是LRU的顺序。LinkedHashMap可以用来实现固定大小的LRU缓存，当LRU缓存已经满了的时候，它会把最老的键值对移出缓存。LinkedHashMap提供了一个称为removeEldestEntry()的方法，该方法会被put()和putAll()调用来删除最老的键值对。当然，如果你已经编写了一个可运行的JUnit测试，你也可以随意编写你自己的实现代码。
 
 ### 二、容器中的设计模式
 
@@ -1315,7 +1333,7 @@ HotSpot虚拟机，就是JVM。实现跨平台的原因就是它可以把java程
 
 1. 强引用：被强引用关联的对象不会被回收，使用new 一个新对象的方式来创建强引用。
 
-2. 软引用：被软引用关联的对象只有在内存不够的情况下才会被回收，使用SoftReference类来创建软引用：
+2. 软引用：**被软引用关联的对象只有在内存不够的情况下才会被回收**，使用SoftReference类来创建软引用：
 
    ```java
    Object obj = new Object();
