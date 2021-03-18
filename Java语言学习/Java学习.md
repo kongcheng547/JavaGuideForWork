@@ -1644,7 +1644,536 @@ public class FileSystemClassLoader extends ClassLoader {
 }
 ```
 
+## Java IO
 
+### 一、概览
+
+Java的IO大致可以分为以下几类：
+
+- 磁盘操作：File
+- 字节操作：InputStream 和 OutputStream
+- 字符操作：Reader 和 Writer
+- 对象操作：Serializable
+- 网络操作：Socket
+- 新的输入/输出：NIO
+
+### 二、磁盘操作
+
+File类可以用于表示文件和目录的信息，但是它不表示文件的内容
+
+递归地列出一个目录下的所有文件：
+
+```java
+public static void listAllFiles(File dir) {
+    if (dir == null || !dir.exists()) {
+        return;
+    }
+    if (dir.isFile()) {
+        System.out.println(dir.getName());
+        return;
+    }
+    for (File file : dir.listFiles()) {
+        listAllFiles(file);
+    }
+}
+```
+
+### 三、字节操作
+
+实现两个文件之间的赋值，一个读入一个写出。
+
+```java
+public static void copyFile(String src, String dist) throws IOException {
+    FileInputStream in = new FileInputStream(src);
+    FileOutputStream out = new FileOutputStream(dist);
+
+    byte[] buffer = new byte[20 * 1024];
+    int cnt;
+
+    // read() 最多读取 buffer.length 个字节
+    // 返回的是实际读取的个数
+    // 返回 -1 的时候表示读到 eof，即文件尾
+    while ((cnt = in.read(buffer, 0, buffer.length)) != -1) {
+        out.write(buffer, 0, cnt);
+    }
+
+    in.close();
+    out.close();
+}
+```
+
+#### 装饰者模式
+
+Java IO使用装饰者模式来实现，以InputStream为例：
+
++ InputStream是抽象组件
++ FileInputStream是InputStream的子类，属于具体组件，提供了字节流的输入操作
++ FilterInputStream属于抽象装饰类，装饰类用于装饰组件，为组件提供额外的功能，
++ 例如 BufferedInputStream 为 FileInputStream 提供缓存的功能。
+
+![img](Java学习.assets/9709694b-db05-4cce-8d2f-1c8b09f4d921.png)
+
+实例化一个具有缓存功能的字节流对象时，只需要在FileInputStream对象上再套一层BufferedInputStream对象即可
+
+```java
+FileInputStream fileInputStream = new FileInputStream(filePath);
+BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
+```
+
+DataInputStream 装饰者提供了对更多数据类型进行输入的操作，比如 int、double 等基本类型。
+
+### 四、字符操作
+
+#### 编码与解码
+
+编码是把字符变为字节，解码是把字节重新组合为字符
+
+- GBK 编码中，中文字符占 2 个字节，英文字符占 1 个字节；
+- UTF-8 编码中，中文字符占 3 个字节，英文字符占 1 个字节；
+- UTF-16be 编码中，中文字符和英文字符都占 2 个字节。
+
+UTF-16be意思是big endian，大段表示，相应的还有小端，是le
+
+Java内存编码用的是双字节UTF-16be，因此char占16位，两个字节，使用这种编码是为了让一个中文或者一个英文都可以用一个char来存储。
+
+#### String的编码方式
+
+String 可以看成一个字符序列，可以指定一个编码方式将它编码为字节序列，也可以指定一个编码方式将一个字节序列解码为 String。
+
+```java
+String str1 = "中文";
+byte[] bytes = str1.getBytes("UTF-8");
+String str2 = new String(bytes, "UTF-8");
+System.out.println(str2);
+```
+
+在调用无参数 getBytes() 方法时，默认的编码方式不是  UTF-16be。双字节编码的好处是可以使用一个 char 存储中文和英文，而将 String 转为 bytes[]  字节数组就不再需要这个好处，因此也就不再需要双字节编码。getBytes() 的默认编码方式与平台有关，一般为 UTF-8。
+
+```java
+byte[] bytes = str1.getBytes();
+```
+
+#### Reader和Writer
+
+不管是磁盘还是网络传输，最小的存储单元都是字节，而不是字符。但是在程序中操作的通常是字符形式的数据，因此需要提供对字符进行操作的方法。
+
+- InputStreamReader 实现从字节流解码成字符流；存储的是字节，显示的是字符
+- OutputStreamWriter 实现字符流编码成为字节流。
+
+####  实现逐行输出文本文件的内容
+
+```java
+public static void readFileContent(String filePath) throws IOException {
+
+    FileReader fileReader = new FileReader(filePath);
+    BufferedReader bufferedReader = new BufferedReader(fileReader);
+
+    String line;
+    while ((line = bufferedReader.readLine()) != null) {
+        System.out.println(line);
+    }
+
+    // 装饰者模式使得 BufferedReader 组合了一个 Reader 对象
+    // 在调用 BufferedReader 的 close() 方法时会去调用 Reader 的 close() 方法
+    // 因此只要一个 close() 调用即可
+    bufferedReader.close();
+}
+```
+
+### 五、对象操作
+
+#### 序列化
+
+序列化就是把一个对象转换成字节序列，方便存储和运输，也就是直接转换为字节，方便存储，用一种方式对对象进行编码，之后再解码使用，
+
+- 序列化：ObjectOutputStream.writeObject()
+- 反序列化：ObjectInputStream.readObject()
+
+不会对静态变量进行序列化，因为序列化只是保存对象的状态，静态变量属于类的状态。序列化只对对象有用，对类无用，所以静态的不能序列化。
+
+#### Serializable
+
+序列化的类需要实现Serializable接口，它只是一个标准，但是没有任何接口的抽象方法需要实现，不实现这个而直接用到writeObject()等方法就会抛出异常。
+
+```java
+public static void main(String[] args) throws IOException, ClassNotFoundException {
+
+    A a1 = new A(123, "abc");
+    String objectFile = "file/a1";
+
+    ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream(objectFile));
+    objectOutputStream.writeObject(a1);
+    objectOutputStream.close();
+
+    ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(objectFile));
+    A a2 = (A) objectInputStream.readObject();
+    objectInputStream.close();
+    System.out.println(a2);
+}
+
+private static class A implements Serializable {//实现接口
+
+    private int x;
+    private String y;
+
+    A(int x, String y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    @Override
+    public String toString() {
+        return "x = " + x + "  " + "y = " + y;
+    }
+}
+```
+
+#### transient
+
+这个关键字的中文是短暂的，可以让一些属性不可以被序列化，即一些对象的相关属性不可以被编码。
+
+ArrayList 中存储数据的数组 elementData 是用 transient 修饰的，因为这个数组是动态扩展的，并不是所有的空间都被使用，因此就不需要所有的内容都被序列化。通过重写序列化和反序列化方法，使得可以只序列化数组中有内容的那部分数据。
+
+```java
+private transient Object[] elementData;
+```
+
+加上这个的作用就是，我现在的需求并不是全部都要进行序列化，我只想序列化部分内容，所以就用到了这个，我再经过重写override writeObject，read函数等，就可以实现我自己独有的序列化及反序列化方法。
+
+### 六、网络操作
+
+Java中网络支持以下操作：
+
+- InetAddress：用于表示网络上的硬件资源，即 IP 地址；
+- URL：统一资源定位符；
+- Sockets：使用 TCP 协议实现网络通信；
+- Datagram：使用 UDP 协议实现网络通信。
+
+#### InetAddress
+
+没有公有的构造函数，只能通过静态方法来创建实例。
+
+```java
+InetAddress.getByName(String host);
+InetAddress.getByAddress(byte[] address);
+```
+
+#### URL
+
+可以直接从 URL 中读取字节流数据。
+
+```java
+public static void main(String[] args) throws IOException {
+
+    URL url = new URL("http://www.baidu.com");
+
+    /* 字节流 */
+    InputStream is = url.openStream();
+
+    /* 字符流 */
+    InputStreamReader isr = new InputStreamReader(is, "utf-8");
+
+    /* 提供缓存功能 */
+    BufferedReader br = new BufferedReader(isr);
+
+    String line;
+    while ((line = br.readLine()) != null) {
+        System.out.println(line);
+    }
+
+    br.close();
+}
+```
+
+#### Socket
+
+- ServerSocket：服务器端类
+- Socket：客户端类
+- 服务器和客户端通过 InputStream 和 OutputStream 进行输入输出。
+
+<img src="Java学习.assets/1e6affc4-18e5-4596-96ef-fb84c63bf88a.png" alt="img" style="zoom:50%;" />
+
+#### Datagram
+
+- DatagramSocket：通信类
+- DatagramPacket：数据包类
+
+### 七、NIO
+
+新的输入/输出 (NIO) 库是在 JDK 1.4 中引入的，弥补了原来的 I/O 的不足，提供了高速的、面向块的 I/O。
+
+#### 流与块
+
+IO以流的方式处理，但是NIO是以块的方式进行处理。
+
+面向流的方式一次处理一个字节数据，所有的输入输出流都是一个字节一个字节运转的。他们的过滤器也很简单，只需要一个过滤器分别处理复杂事务的一部分内容就行，但是这样的处理方式是很慢的。
+
+于是NIO诞生了，一次处理一块，速度快得多，但是面向块的IO缺少了面向流的一些优雅型和简单性。
+
+I/O 包和 NIO 已经很好地集成了，java.io.* 已经以 NIO 为基础重新实现了，所以现在它可以利用 NIO 的一些特性。例如，java.io.* 包中的一些类包含以块的形式读写数据的方法，这使得即使在面向流的系统中，处理速度也会更快。
+
+#### 通道与缓冲区
+
+1. 通道Channel是对原来的IO里面的流的模拟，可以通过它读取和写入数据
+
+   通道和流的区别在于流只能在一个方向上移动，一个流必须是InputStream或者out的子类，但是通道是双向的，可以用于读、写、或者同时读写。
+
+   通道包含以下类型：
+
+   + FileChannel：从文件中读写数据；
+
+   + DatagramChannel：通过 UDP 读写网络中数据；
+
+   + SocketChannel：通过 TCP 读写网络中数据；
+
+   + ServerSocketChannel：可以监听新进来的 TCP 连接，对每一个新进来的连接都会创建一个 SocketChannel
+
+2. 缓冲区：发送给一个通道的所有数据都必须首先放到缓冲区中，同样的，读取数据也需要先读到缓冲区中，也就是说没有对其直接的读写，都是先经过缓冲区的。
+
+   缓冲区实质上是一个数组，但是它不仅仅是一个数组，缓冲区提供了对数据的结构化访问，还可以跟踪系统的读、写进程
+
+   缓冲区包括以下类型：
+
+   - ByteBuffer
+   - CharBuffer
+   - ShortBuffer
+   - IntBuffer
+   - LongBuffer
+   - FloatBuffer
+   - DoubleBuffer
+
+#### 缓冲区状态变量
+
+- capacity：最大容量；
+- position：当前已经读写的字节数；
+- limit：还可以读写的字节数。
+
+有flip方法，将limit设置为当前position，并且把position设置为0
+
+有clear()方法，将所有值都设置为原来的大小。
+
+#### 文件NIO实例
+
+```java
+public static void fastCopy(String src, String dist) throws IOException {
+
+    /* 获得源文件的输入字节流 */
+    FileInputStream fin = new FileInputStream(src);
+
+    /* 获取输入字节流的文件通道 */
+    FileChannel fcin = fin.getChannel();
+
+    /* 获取目标文件的输出字节流 */
+    FileOutputStream fout = new FileOutputStream(dist);
+
+    /* 获取输出字节流的文件通道 */
+    FileChannel fcout = fout.getChannel();
+
+    /* 为缓冲区分配 1024 个字节 */
+    ByteBuffer buffer = ByteBuffer.allocateDirect(1024);
+
+    while (true) {
+
+        /* 从输入通道中读取数据到缓冲区中 */
+        int r = fcin.read(buffer);
+
+        /* read() 返回 -1 表示 EOF */
+        if (r == -1) {
+            break;
+        }
+
+        /* 切换读写 */
+        buffer.flip();
+
+        /* 把缓冲区的内容写入输出文件中 */
+        fcout.write(buffer);
+
+        /* 清空缓冲区 */
+        buffer.clear();
+    }
+}
+```
+
+#### 选择器
+
+NIO常常被叫做非阻塞IO，主要是因为它在网络通信里面的非阻塞特性而被广泛使用
+
+NIO实现了IO多路复用的Reactor模型，一个线程Thread使用一个选择器Selector通过轮询的方式去监听多个通道Channel上的事件，从而让一个线程就可以处理多个事件。和cpu的轮转调度差不多。
+
+每次就监听多个Channel，如果这个通道上没有IO事件，就换下一个，不会一直在一个channel里面等待。因为创建和切换线程的开销很大，所以使用一个线程来处理多个事件的IO比一个线程处理一个事件的IO要性能更好。
+
+应该注意的是，只有套接字Socket的channel才能配置为非阻塞，为普通文件配置是无意义的，只有网络实践中才会有多个IO通道的区分。
+
+<img src="Java学习.assets/093f9e57-429c-413a-83ee-c689ba596cef.png" alt="img" style="zoom:50%;" />
+
+```java
+Selector selector = Selector.open();//创建一个选择器
+ServerSocketChannel ssChannel = ServerSocketChannel.open();//开启服务器channel
+ssChannel.configureBlocking(false);//取消阻塞
+ssChannel.register(selector, SelectionKey.OP_ACCEPT);//将通道注册到选择器上
+```
+
+通道必须配置为非阻塞模式，否则使用选择器就没有任何意义了，因为如果通道在某个事件上被阻塞，那么服务器就不能响应其它事件，必须等待这个事件处理完毕才能去处理其它事件，显然这和选择器的作用背道而驰。我们的选择器就没有什么作用。
+
+在将通道注册到选择器上时，还需要指定要注册的具体事件，主要有以下几类：
+
+- SelectionKey.OP_ACCEPT —— 接收连接继续事件，**表示服务器监听到了客户连接，服务器可以接收这个连接了**
+
+- SelectionKey.OP_CONNECT —— 连接就绪事件，**表示客户与服务器的连接已经建立成功**
+
+- SelectionKey.OP_READ —— 读**就绪**事件，**表示通道中已经有了可读的数据，可以执行读操作了（通道目前有数据，可以进行读操作了）**
+
+- SelectionKey.OP_WRITE —— 写**就绪**事件，**表示已经可以向通道写数据了（通道目前可以用于写操作）**
+
+ 这里 注意，下面两种，SelectionKey.OP_READ ，SelectionKey.OP_WRITE ，
+
+1. 当向通道中注册SelectionKey.OP_READ事件后，如果客户端有向缓存中write数据，下次轮询时，则会 isReadable()=true；
+
+2. 当向通道中注册SelectionKey.OP_WRITE事件后，这时你会发现当前轮询线程中isWritable()一直为ture，如果不设置为其他事件
+
+它们在 SelectionKey 的定义如下：
+
+```java
+public static final int OP_READ = 1 << 0;
+public static final int OP_WRITE = 1 << 2;
+public static final int OP_CONNECT = 1 << 3;
+public static final int OP_ACCEPT = 1 << 4;
+```
+
+可以看出每个事件可以被当成一个位域，从而组成事件集整数。例如：
+
+```java
+int interestSet = SelectionKey.OP_READ | SelectionKey.OP_WRITE;
+```
+
+```java
+int num = selector.select();
+```
+
+使用 select() 来监听到达的事件，它会一直阻塞直到有至少一个事件到达
+
+```java
+while (true) {//一直死循环，一直监听事件到来
+    int num = selector.select();
+    Set<SelectionKey> keys = selector.selectedKeys();//创建一个事件set
+    Iterator<SelectionKey> keyIterator = keys.iterator();
+    while (keyIterator.hasNext()) {//进行循环，对事件进行处理
+        SelectionKey key = keyIterator.next();
+        if (key.isAcceptable()) {//根据不同类型对事件进行不同的处理
+            // ...
+        } else if (key.isReadable()) {
+            // ...
+        }
+        keyIterator.remove();//处理完之后从set里面移除
+    }
+}
+
+```
+
+#### 套接字NIO实例
+
+1. 服务器端：
+
+   ```java
+   public class NIOServer {
+   
+       public static void main(String[] args) throws IOException {
+   
+           Selector selector = Selector.open();//打开选择器
+   
+           ServerSocketChannel ssChannel = ServerSocketChannel.open();
+           ssChannel.configureBlocking(false);//阻塞状态关闭
+           ssChannel.register(selector, SelectionKey.OP_ACCEPT);//注册选择器
+   
+           ServerSocket serverSocket = ssChannel.socket();
+           InetSocketAddress address = new InetSocketAddress("127.0.0.1", 8888);
+           serverSocket.bind(address);//套接字连接
+   
+           while (true) {//死循环监听事件
+   
+               selector.select();
+               Set<SelectionKey> keys = selector.selectedKeys();//创建set
+               Iterator<SelectionKey> keyIterator = keys.iterator();//迭代器
+   
+               while (keyIterator.hasNext()) {//循环处理
+   
+                   SelectionKey key = keyIterator.next();
+   
+                   if (key.isAcceptable()) {//可接受的就连接起来
+   
+                       ServerSocketChannel ssChannel1 = (ServerSocketChannel) key.channel();
+   
+                       // 服务器会为每个新连接创建一个 SocketChannel
+                       SocketChannel sChannel = ssChannel1.accept();
+                       sChannel.configureBlocking(false);
+   
+                       // 这个新连接主要用于从客户端读取数据
+                       sChannel.register(selector, SelectionKey.OP_READ);
+   
+                   } else if (key.isReadable()) {
+   
+                       SocketChannel sChannel = (SocketChannel) key.channel();
+                       System.out.println(readDataFromSocketChannel(sChannel));
+                       sChannel.close();//可读的就读出来内容
+                   }
+   
+                   keyIterator.remove();
+               }
+           }
+       }
+   
+       private static String readDataFromSocketChannel(SocketChannel sChannel) throws IOException {//专门的读取文件方法
+   
+           ByteBuffer buffer = ByteBuffer.allocate(1024);//缓冲区预定
+           StringBuilder data = new StringBuilder();//线程不安全
+   
+           while (true) {
+   
+               buffer.clear();
+               int n = sChannel.read(buffer);//读取缓冲区
+               if (n == -1) {
+                   break;
+               }
+               buffer.flip();//让limit=position position为0
+               int limit = buffer.limit();
+               char[] dst = new char[limit];
+               for (int i = 0; i < limit; i++) {
+                   dst[i] = (char) buffer.get(i);
+               }
+               data.append(dst);
+               buffer.clear();
+           }
+           return data.toString();
+       }
+   }
+   ```
+
+2. 客户端：
+
+   ```java
+   public class NIOClient {
+   
+       public static void main(String[] args) throws IOException {
+           Socket socket = new Socket("127.0.0.1", 8888);
+           OutputStream out = socket.getOutputStream();
+           String s = "hello world";
+           out.write(s.getBytes());
+           out.close();
+       }
+   }
+   ```
+
+#### 内存映射文件
+
+内存映射文件IO是一种读写文件数据的方式，比基于流基于通道的IO快得多。
+
+但是这种方式不安全，因为直接改变就可以将数据保存到磁盘，是直接进行的修改，有安全问题。
+
+下面代码行将文件的前 1024 个字节映射到内存中，map() 方法返回一个 MappedByteBuffer，它是 ByteBuffer 的子类。因此，可以像使用其他任何 ByteBuffer 一样使用新映射的缓冲区，操作系统会在需要时负责执行映射。
+
+```java
+MappedByteBuffer mbb = fc.map(FileChannel.MapMode.READ_WRITE, 0, 1024);
+```
 
 
 
