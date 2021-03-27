@@ -218,6 +218,48 @@ Java中创建对象的方式，构造方法 new或者反射、序列化再读出
 
     创建ac的时候，用总的配置的config文件。
 
+##### 注解实现di
+
+使用步骤：
+
+1. 加入Maven的依赖，用的是spring-context，在你加入这个的时候，间接地会加入spring-aop依赖，有aop才能用注解
+
+2. 在类中加入spring的注解(多个不同功能的注解)
+
+3. 在spring的配置文件里面加入组件扫描器的标签，说明注解在项目中的位置
+
+4. 有以下注解：
+
+   ```java
+   @component(value="myStudent") 创建对象的，等同于bean的功能，value是唯一的对象名称，也就是bean里面的id值，位置在类的上面，这句话的意思就等同于bean标签
+   要在applicationContext里面写
+       <context:component-scan base-package="包名称"/>
+   这个value=是可以省略的 常用
+   或者后面可以不写括号，那么默认的value就是类的名字首字母小写
+   创建的时候会用无参构造函数
+   @Respotory 放在dao的实现类里面，表示创建dao对象，访问数据库 持久层
+   @Service 业务层，放在Service类上面，事务类
+   @Controller 控制器 控制器对象，接受用户提交的参数并且显示请求的处理结果
+   三个和Component一样可以创建对象，但是都有额外的功能
+   Component在不知道是什么类的时候就用
+   @Value 给简单类型的赋值，就是给类的数据赋值，无需set方法则写在类成员前面，或者可以写在set函数前面
+       @Value("张飞")直接把值设置为了这么多
+   @Autowired 对引用类型赋值 自动注入原理 默认type注入 只用写这个就行，就可以根据类型进行赋值，但是要声明清楚其引用类的注解，可以是注解也可以用bean标签
+   @Resource
+   ```
+
+5. 指定多个包的三种方式，在bean里面的compone-scan里面
+
+   ```xml
+   <context:component-scan base-package="包名称"/> 多个直接写
+   
+   <context:component-scan base-package="包名称;包名称"/>多个分号分割
+   
+   <context:component-scan base-package="包名称"/>总包名称，可以把所有都扫描，但是不要直接com，因为是顶级包，会扫描很多，无用包扫描
+   ```
+
+6. 
+
 
 
 
