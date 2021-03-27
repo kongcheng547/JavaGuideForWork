@@ -178,7 +178,45 @@ Java中创建对象的方式，构造方法 new或者反射、序列化再读出
 
 8. junit是一个单元测试工具类库，做测试方法用的，单元指定的是方法，一是可以在类下面写一个main方法进行执行。另外的就是用单元测试，需要加入junit依赖，然后创建测试类，需要在src/test/com/包+类下创建。创建测试方法应该是public void ，建议名称是test+ 测试方法名称，方法没有参数，方法的上面要加上@Test注解，这个注解来自Junit，这样的方法就可以单独执行，不用main方法就可以跑起来。
 
+9. 什么样的对象要放进容器中：dao类 service类、controller类、工具类，对象默认都是实例的，在容器中叫这个名称的对象只有一个。而实体类对象，如数据库或者Tomcat容器出来的对象，都不应该放到容器中。怎么放进去？一个是用bean标签，xml文件，另一个是注解
 
+10. 使用框架的步骤：
+
+    1. 加依赖
+    2. 创建类，类是自己做的，有接口和实现类。
+    3. 创建Spring的配置文件，使用\<bean>声明对象，里面的name和value或者ref
+    4. 使用容器中的对象，通过ApplicationContext接口和它的实现类ClassPathXmlApplicationContext方法的getBean().
+
+11. 引用类型的自动注入，根据一些规则由spring完成赋值操作。两种方法
+
+    1. byName()方法，按名称注入，java类中引用类型的属性名和spring配置文件中的id名称一样，数据类型一样，这样容器中的bean，spring能够赋值给引用类型，语法规则是
+
+       ```xml
+       <bean id="xx" class="yyy" autowire="byName"
+       ```
+
+       即我的引用类型的bean标签的id应该和它本身类的名字一样才可以
+
+    2. byType，按类型注入，Java类中引用类型的数据类型和Spring容器中bean配置的class属性是同源关系的，这样的bean能够赋值给引用类型。引用类型的数据类型和bean的class的值一样，或者class是子类，或者class是接口的实现
+
+       ```xml
+       <bean id="xx" class="yyy" autowire="byType"
+       ```
+
+       就是需要的引用类型的class要和我自己的数据对象是一个class出来的，或者引用的那个bean是子类也可以，或者接口也可以。这个时候就不允许有两个一样关系的出来了，比如有了父类的bean，又有一个子类的bean，这样就是不允许的，保证符合条件的bean只有一个。
+
+12. 类的数量特别多的时候，采用多个配置文件，即多个ApplicationContext.xml文件，里面是写的bean依赖。这样的优势是文件小，打开修改快，避免多人竞争带来的冲突。可以按功能模块分文件，或者按类的功能分文件。
+
+    按模块分的时候，一般两个模块，然后需要一个总的主配置文件，里面不定义bean，bean都在另外两个模块的配置文件里面写。这里只写一个配置文件路径，就是其他的文件应该去哪里找。里面的路径是类路径，在target里面的classes文件里面找。语法为：
+
+    ```xml
+    <import resource="classpath:ba06/spring-school.xml"/>
+    <import resource="classpath:ba06/spring-student.xml"/>
+    <!--可以用通配符，比如这里写为 就是对有一定相关性的用*表示-->
+    <import resource="classpath:ba06/spring-*.xml"/>
+    ```
+
+    创建ac的时候，用总的配置的config文件。
 
 
 
