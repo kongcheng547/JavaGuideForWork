@@ -342,6 +342,8 @@ aop的技术实现框架：spring能够做aop的工作，主要在事务处理�
 
    ![image-20210328163309742](Java框架开发.assets/image-20210328163309742.png)
 
+   要给多个目标方法都加上功能，就改变一下表达式，里面可能是同一个包之类的。
+
 3. 步骤：
 
    1. 新建Maven项目
@@ -379,10 +381,62 @@ aop的技术实现框架：spring能够做aop的工作，主要在事务处理�
       这个标签会把spring中的所有目标对象一次性生成代理对象
 
    6. 创建测试类，从spring中获取对象，其实就是代理对象，通过代理执行方法，实现aop的功能增强。**获取目标对象不是用类获取的，而是用接口作为类型proxy出来的。**这里的代理proxy还是jdk动态生成的代理。
+   
+4. 指定通知方法中的参数，连接点JoinPoint是业务方法(目标方法，即要加入切面功能的方法)。作用是可以在通知方法中获取方法执行时的信息，如方法名称和方法的实参。
 
+   @Before(value="excution(...)")
 
+   public void myBefore(JoinPoint jp)，这样jp就是目标方法了，通过它可以获取很多东西，如方法定义、方法名称、方法实参等。可以用这个获得目标方法的所有信息。
 
+   这个jp是每个注解都能用的，而且其参数必须放在第一个。
 
+5. 注解说明
+
+   1. 后置通知，方法要求和Before一样，但是必须要有参数Object res；注解是@AfterReturning 后置通知，属性有两个，value是切入点表达式，returning是自定义的变量，表达目标方法的返回值，这个就是必须和Object那个名字一样，就是res。位置就是方法的上面。在目标方法之后执行，能够获取到目标方法的返回值，可以根据返回值做不同的处理功能，可以修改这个返回值。但是不一定结果会真的改变，因为Java传参数有两种，一种传值，一种传对象地址，如果是Sting这种那么就不会改变，而如果是对象的话就会改变。
+
+   2. @Around，环绕通知，其功能最强。方法定义格式和之前差不多，public 必须有返回值，Object，名字自定义，有固定的参数ProceedingJoinPoint。注解参数有value切入点表达式，位置就在方法定义上面。它是最强的通知，在方法前后都可以增强功能，可以控制目标方法是否被调用执行。
+
+      等同于jdk里面的动态代理，在前和后都有用。
+
+      ProceedingJoinPoint pjp参数等同于jdk调用里面的Method方法，其实就是执行目标方法的。这个是继承的JoinPoint类
+
+      返回值Object就是目标方法的执行结果。
+
+      目标方法调用其实就是 pjp.proceed()；在目标方法前和后做我们的操作就行，比如输出相关信息。可以用Object args[]=pjp.getArgs();获得参数，然后参数个数对应前面，我们可以对参数进行判断，然后决定是否执行。这个也可以改变返回值。
+
+      这个经常用来做事务，之前开启事务，执行方法，然后提交事务。
+
+   3. 还有@AfterThrowing，也是public void 方法名自定义，有一个参数Exception，还有一个只可能是JoinPoint。
+
+      参数有value切入点表达式，throwing自定义的变量ex，即Exception ex，形参名。这个就是我们发生异常的时候可以做一些操作，比如输出异常的内容。这个的作用就是在发生异常的时候进行通知，相当于try里面的catch。
+
+   4. @After，public void 自定义方法名，没有参数，可能有JoinPoint。这个叫做最终通知，value是切入点表达式。特点是总是会执行，在目标方法之后执行的。相当于Finally。
+
+6. @PointCut，如果在一个Aspect里面，有多个一样的切入点表达式，可复用的，那么就用这个注解，进行定义，然后可以省略很多内容。写在一个方法上面的时候，此时这个方法就是切入点表达式的别名，那么我们在其他的地方就可以用这个方法，**但是注意写方法要写出括号**。这个方法随便定义。
+
+7. 我们有接口的时候，那么就会用jdk的动态代理。如果我们没有写接口，那么用的就是cglib的动态代理。
+
+   有接口的时候我们也可以用cglib代理，需要在bean文件里面声明aop的时候加上，proxy-target-class="true"，这样就用到了cglib代理，然后速度是较快的。
+
+### Spring集成MyBatis
+
+我们要做的就是两个框架进行集成，像一个框架一样使用，用的技术是IOC。为什么IOC可以？因为IOC能创建对象，可以把MyBatis框架中的对象交给Spring统一创建，开发人员从Spring中获取对象。Spring的强大之处就在于可以整合其他各个框架，靠的就是IoC。
+
+#### MyBatis使用步骤
+
+1. 定义dao接口，StudentDao
+2. 定义mapper文件，studentDao.xml
+3. 定义myBatis的主配置文件myBatis.xml。主要内容就是数据库信息和mapper文件的位置。我们会使用独立的连接池替换Mybatis默认自己带的连接池，把连接池也交给Spring创建。
+4. 创建dao的代理对象，Dao=SqlSession.getMapper(StudentDao.class);从而就可以进行使用。使用这个getMapper方法有条件：
+   1. 获取SqlSession对象，需要使用SqlSessionFactory的openSession()方法，
+   2. 创建SqlSessionFactory对象，通过读取mybatis的主配置文件，能创建SqlSessionFactory对象。
+
+#### Spring需要做的事
+
+1. 创建独立的连接池对象，使用阿里的druid连接池
+2. 创建SqlSessionFactory对象
+3. 创建出dao对象。
+4. 使用的都是bean的标签，因为注解我们没有源代码是无法进行操作的。
 
 
 
