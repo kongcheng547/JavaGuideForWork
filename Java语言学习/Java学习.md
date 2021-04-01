@@ -2356,7 +2356,7 @@ while (true) {//一直死循环，一直监听事件到来
        private static String readDataFromSocketChannel(SocketChannel sChannel) throws IOException {//专门的读取文件方法
    
            ByteBuffer buffer = ByteBuffer.allocate(1024);//缓冲区预定
-           StringBuilder data = new StringBuilder();//线程不安全
+           StringBuilder data = new StringBuilder();//线程安全
    
            while (true) {
    
