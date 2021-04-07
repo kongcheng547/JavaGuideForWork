@@ -1241,7 +1241,139 @@ ForkJoinPool的模型就是实现一个工作窃取算法，本身做好了的�
 
 1. 意思就是当一个线程申请到锁，就成为偏向锁，做什么操作都不需要同步，当另一个线程需要申请此资源的时候，就会撤销偏向锁，变成正常的锁。这个就是为了防止本身没什么并发操作的时候却浪费了太多的资源。
 
-### 十二、多线程开发的技巧
+### 十二、线程池专讲
+
+#### 使用线程池的好处
+
+池化技术很多，比如线程池、数据库连接池、http连接池等等。
+
+线程池提供了一种限制和管理资源包括执行一个任务，每个线程池还维护一些基本的统计信息，比如已完成任务的数量。
+
+好处为：
+
+1. 降低资源消耗，通过重复利用已经创建的线程来降低线程创建和销毁造成的损耗
+2. 提高响应速度，当任务到达时，任务可以不需要等到线程创建就能立即执行
+3. 提高线程的可管理性，线程是稀缺资源，如果无限制地创建，会消耗系统资源，还会降低系统的稳定性，线程池开业用来统一的分配、调优、监控。
+
+#### Executor框架
+
+##### 简介
+
+Executor框架是Java 5之后引进的，在这里面用这个启动线程比使用Thread的start方法更好，有助于避免this逃逸的问题。这个问题是指在构造函数返回之前其他线程就持有该对象的引用，调用尚未构造完全的对象的方法可能会引发很大的问题。
+
+这个框架不仅包含了线程池的管理，还提供了线程工厂，队列以及拒绝策略等，这个框架让编程更加简单。
+
+##### Executor框架结构
+
+1. 任务由Runnable或者Callable接口实现，这些接口的实现类可以被ThreadPoolExecutor或者SchduledThreadPoolExecutor执行。
+
+2. 任务的执行Executor，
+
+   <img src="Java学习.assets/任务的执行相关接口.png" alt="任务的执行相关接口" style="zoom: 67%;" />
+
+   如下图所示，包括任务执行机制的核心接口 **`Executor`** ，以及继承自 `Executor` 接口的 **`ExecutorService` 接口。`ThreadPoolExecutor`** 和 **`ScheduledThreadPoolExecutor`** 这两个关键类实现了 **ExecutorService 接口**。
+
+   **`ThreadPoolExecutor` 类描述:**
+
+   ```java
+   //AbstractExecutorService实现了ExecutorService接口
+   public class ThreadPoolExecutor extends AbstractExecutorService
+   ```
+
+   **`ScheduledThreadPoolExecutor` 类描述，**继承了一个类又实现了一个接口
+
+   ```java
+   //ScheduledExecutorService继承ExecutorService接口
+   public class ScheduledThreadPoolExecutor
+           extends ThreadPoolExecutor
+           implements ScheduledExecutorService
+   ```
+
+3. 异步计算的结果：**`Future`** 接口以及 `Future` 接口的实现类 **`FutureTask`** 类都可以代表异步计算的结果。
+
+   当我们把 **`Runnable`接口** 或 **`Callable` 接口** 的实现类提交给 **`ThreadPoolExecutor`** 或 **`ScheduledThreadPoolExecutor`** 执行。（调用 `submit()` 方法时会返回一个 **`FutureTask`** 对象）
+
+##### Executor框架的使用示意图
+
+![Executor 框架的使用示意图](Java学习.assets/Executor框架的使用示意图.png)
+
+1. **主线程首先要创建实现 `Runnable` 或者 `Callable` 接口的任务对象。**
+2. **把创建完成的实现 `Runnable`/`Callable`接口的 对象直接交给 `ExecutorService` 执行**: `ExecutorService.execute（Runnable command）`）或者也可以把 `Runnable` 对象或`Callable` 对象提交给 `ExecutorService` 执行（`ExecutorService.submit（Runnable task）`或 `ExecutorService.submit（Callable <T> task）`）。
+3. **如果执行 `ExecutorService.submit（…）`，`ExecutorService` 将返回一个实现`Future`接口的对象**（我们刚刚也提到过了执行 `execute()`方法和 `submit()`方法的区别，`submit()`会返回一个 `FutureTask 对象）。由于 FutureTask` 实现了 `Runnable`，我们也可以创建 `FutureTask`，然后直接交给 `ExecutorService` 执行。
+4. **最后，主线程可以执行 `FutureTask.get()`方法来等待任务执行完成。主线程也可以执行 `FutureTask.cancel（boolean mayInterruptIfRunning）`来取消此任务的执行。**
+
+#### ThreadPoolExecutor类简单介绍
+
+这是Executor框架最核心的类
+
+##### 类分析
+
+提供四个构造方法，我们看最长的那个，其他三个是这个基础上面的指定某些默认参数形式：
+
+```java
+    /**
+     * 用给定的初始参数创建一个新的ThreadPoolExecutor。
+     */
+    public ThreadPoolExecutor(int corePoolSize,//线程池的核心线程数量
+                              int maximumPoolSize,//线程池的最大线程数
+                              long keepAliveTime,//当线程数大于核心线程数时，多余的空闲线程存活的最长时间
+                              TimeUnit unit,//时间单位
+                              BlockingQueue<Runnable> workQueue,//任务队列，用来储存等待执行任务的队列
+                              ThreadFactory threadFactory,//线程工厂，用来创建线程，一般默认即可
+                              RejectedExecutionHandler handler//拒绝策略，当提交的任务过多而不能及时处理时，我们可以定制策略来处理任务
+                               ) {
+        if (corePoolSize < 0 ||
+            maximumPoolSize <= 0 ||
+            maximumPoolSize < corePoolSize ||
+            keepAliveTime < 0)
+            throw new IllegalArgumentException();
+        if (workQueue == null || threadFactory == null || handler == null)
+            throw new NullPointerException();
+        this.corePoolSize = corePoolSize;
+        this.maximumPoolSize = maximumPoolSize;
+        this.workQueue = workQueue;
+        this.keepAliveTime = unit.toNanos(keepAliveTime);
+        this.threadFactory = threadFactory;
+        this.handler = handler;
+    }
+```
+
+**`ThreadPoolExecutor` 3 个最重要的参数：**
+
+- **`corePoolSize` :** 核心线程数线程数定义了最小可以同时运行的线程数量。
+- **`maximumPoolSize` :** 当队列中存放的任务达到队列容量的时候，当前可以同时运行的线程数量变为最大线程数。
+- **`workQueue`:** 当新任务来的时候会先判断当前运行的线程数量是否达到核心线程数，如果达到的话，新任务就会被存放在队列中。
+
+<img src="Java学习.assets/线程池各个参数之间的关系.png" alt="线程池各个参数的关系" style="zoom: 33%;" />
+
+`ThreadPoolExecutor`其他常见参数:
+
+1. **`keepAliveTime`**:当线程池中的线程数量大于 `corePoolSize` 的时候，如果这时没有新的任务提交，核心线程外的线程不会立即销毁，而是会等待，直到等待的时间超过了 `keepAliveTime`才会被回收销毁；
+2. **`unit`** : `keepAliveTime` 参数的时间单位。
+3. **`threadFactory`** :executor 创建新线程的时候会用到。
+4. **`handler`** :饱和策略。关于饱和策略下面单独介绍一下。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### 十三、多线程开发的技巧
 
 - 给线程起个有意义的名字，这样可以方便找 Bug。
 - 缩小同步范围，从而减少锁争用。例如对于 synchronized，应该尽量使用同步块而不是同步方法。就是应该是对方法内的一部分代码进行同步，而不是整个方法，这样减小占用。
