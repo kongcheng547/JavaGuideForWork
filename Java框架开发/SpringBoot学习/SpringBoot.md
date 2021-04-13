@@ -717,6 +717,14 @@ public class MockConfiguration {
 
 **@Controller** 在展现层使用，控制器的声明（C）
 
+@RestController:
+
+用于标注控制层组件(如struts中的action)，包含@Controller和@ResponseBody；
+
+@Controller:
+
+用于标注是控制层组件，**需要返回页面时请用@Controller而不是@RestController**；
+
 @**Bean**用于把当前方法的返回值作为bean对象存入spring的ioc容器里面，name用于指定bean的id，不写的时候那么就默认是当前方法的名称小写，
 
 ```java
@@ -1329,11 +1337,119 @@ SpringBoot 还允许我们提供更多的 HealthIndicator 实现，只要将这�
 
 不管是 spring-boot-starter-actuator 默认提供的 endpoint 实现，还是我们自己给出的 endpoint  实现，如果只是实现了放在 SpringBoot  应用的“身体内部”，那么它们不会发挥任何作用，只有将它们采集的信息暴露开放给外部监控者，或者允许外部监控者访问它们，这些 endpoints  才会真正发挥出它们的最大“功效”。
 
+# 实习问题过程记录
+
+## 4.13学习lib项目
+
+### 项目理解
+
+1. @GetMapping("/admin/reader/list")注解，就是输入网址的时候就到我们这个controller进行处理。dto是data transfer object，dao是data access object。都是controller里面进行，然后到service里面具体进行业务处理，dao就是进行数据库访问等，
+
+2. <img src="SpringBoot.assets/image-20210413134027179.png" alt="image-20210413134027179" style="zoom:50%;" />
+
+   记得要进行修改
+
+3. navicate可以进行连接，看到数据库的相关内容，网络数据库
+
+4. http://localhost:8082/swagger-ui.html#/这个在启动之后进入就可以模拟网络传输，添加我们的http包等内容，有什么需要的就直接写。
+
+5. instance函数只是对数据形式的一个转换，一个方法，而不是构造函数
+
+### 常用注解
+
+#### API注解说明
+
+1. **@API**
+    使用在类上，表明是swagger资源，@API拥有两个属性:value、tags，源码如下
+
+   ```java
+   //If tags is not used,this value will be used to set the tag for the operations described by this resource. Otherwise, the value will be ignored.
+    String value() default "";
+   
+    //Tags can be used for logical grouping of operations by resources or any other qualifier.
+    String[] tags() default {""};
+   
+   ```
+
+   生成的api文档会根据tags分类，直白的说就是这个controller中的所有接口生成的接口文档都会在tags这个list下；tags如果有多个值，会生成多个list，每个list都显示所有接口
+
+   @Api(tags = "列表1")
+   @Api(tags = {"列表1","列表2"})
+
+   value的作用类似tags,但是不能有多个值
+
+2. **@ApiOperation**
+   使用于在方法上，表示一个http请求的操作
+   源码中属性太多，记几个比较常用
+   value用于方法描述
+   notes用于提示内容
+   tags可以重新分组（视情况而用）
+
+3. **@ApiParam**
+   使用在方法上或者参数上，字段说明；表示对参数的添加元数据（说明或是否必填等）
+   name–参数名
+   value–参数说明
+   required–是否必填
+
+4. **@ApiModel()**
+   使用在类上，表示对类进行说明，用于参数用实体类接收
+   value–表示对象名
+   description–描述
+
+5. **@ApiModelProperty()**
+   使用在方法，字段上，表示对model属性的说明或者数据操作更改
+   value–字段说明
+   name–重写属性名字
+   dataType–重写属性类型
+   required–是否必填
+   example–举例说明
+   hidden–隐藏
+
+#### 网络注解说明
+
+1. **@RequestHeader** 是获取请求头中的数据，通过指定参数 value 的值来获取请求头中指定的参数值。其他参数用法和 @RequestParam 完全一样。value是通过这个字段来获取值，**required是表示是否必需这个参数**。
+
+2. @Data注解写在dto类的前面，则get和set方法都有了，可以直接用。是lombok插件里面的内容。还有相似的@Getter和@Setter注解
+
+3. ```java
+   	@PutMapping("/admin/{id}/reader/update/{state}")//注解表示到这个url的时候会调用这个函数进行后台处理
+       @ApiOperation("修改状态")//这是添加一个value注解，说明一下作用
+       public Response<Boolean> delete(@RequestHeader(value = "ebao-uid", required = false) Integer ebaoUid,
+                                       @PathVariable("id") Integer id,//这是url地址里面的变量，获取到
+                                       @PathVariable("state") Integer state,//这也是变量
+                                       @RequestBody FrozenReasonDto frozenReasonDto//这是体部的内容
+                                       //@RequestParam是url后面?的内容，和body是有区别的
+                                       ) {
+           LoginRespDto user = operatorService.currentUser();
+           readerService.updateState(id, state, user.getId().toString(), user.getRealName(),frozenReasonDto);
+           return Response.success;
+       }
+   ```
+
+4. @GetMapping是一个组合注解，是@RequestMapping(method = RequestMethod.GET)的缩写。
+
+   @PostMapping是一个组合注解，是@RequestMapping(method = RequestMethod.POST)的缩写。
+
+   http协议明确规定，put、get与delete请求都是具有幂等性的，而post为非幂等性请求，就是说接口被定义为post请求可访问时，说明这个接口对数据库的影响是非幂等性的。**所以一般插入新数据时，用post方法，更新数据库时，用put方法，**以此类推@PostMapping注解是标示接口为非幂等性接口，@PutMapping注解是标示接口为幂等性接口。
+
+#### Enable*注解说明
+
+这是用来启动某一个功能特性的一类注解，包括我们常用的`@SpringBootApplication`注解中用于开启自动注入的annotation`@EnableAutoConfiguration`，开启异步方法的annotation`@EnableAsync`，开启将配置文件中的属性以bean的方式注入到IOC容器的annotation`@EnableConfigurationProperties`等。
+
+![img](SpringBoot.assets/7948984-2546c721c6f9c5cd.png)
+
+这个的方法的作用就是让注解方法可以和其他方法异步执行，重点在于import注解，这个用来导入一个或者多个class，放到spring容器里面进行托管。
+
+然后是`AsyncConfigurationSelector.class`这个class，里面继承了一个接口，
+
+#### Springboot注解学习
 
 
 
+### 知识学习
 
-
+1. Response类里面有ok，返回正确的结果，需要的结果，.success返回的是是否成功的。
+2. NBSP就是html里面的空格转义符，amp表示&符号
 
 
 
