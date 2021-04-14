@@ -131,6 +131,32 @@ JSP全称是Java Server Pages，一种动态网页技术。能够有一个编译
    容器里面存的是对象，Core Container
 
    ORM就是MyBatis，Web是Spring MVC
+   
+   - **Spring Core：** 基础,可以说 Spring 其他所有的功能都需要依赖于该类库。主要提供 IoC 依赖注入功能。
+   - **Spring  Aspects** ： 该模块为与AspectJ的集成提供支持。
+   - **Spring AOP** ：提供了面向切面的编程实现。
+   - **Spring JDBC** : Java数据库连接。
+   - **Spring JMS** ：Java消息服务。
+   - **Spring ORM** : 用于支持Hibernate等ORM工具。Object Relational Mapping
+   - **Spring Web** : 为创建Web应用程序提供支持。
+   - **Spring Test** : 提供了对 JUnit 和 TestNG 测试的支持。
+   
+8. Spring就是很多模块的集合，比如核心容器、数据集成访问、web、aop、工具、消息、测试模块。Core Container中的core组件是Spring所有组件的核心，beans组件和context组件是IoC和Di的基础，AOP组件用来实现面向切面编程。
+
+   - **核心技术** ：依赖注入(DI)，AOP，事件(events)，资源，i18n，验证，数据绑定，类型转换，SpEL。
+   - **测试** ：模拟对象，TestContext框架，Spring MVC 测试，WebTestClient。
+   - **数据访问** ：事务，DAO支持，JDBC，ORM，编组XML。
+   - **Web支持** : Spring MVC和Spring WebFlux Web框架。
+   - **集成** ：远程处理，JMS，JCA，JMX，电子邮件，任务，调度，缓存。
+   - **语言** ：Kotlin，Groovy，动态语言。
+
+#### @RestController 和 @Controller
+
+Controller返回一个页面，不加@ResponseBody就是在返回一个视图的情况下进行，适用于前后端不分离的情况。
+
+**`@RestController` 返回JSON 或 XML 形式数据**，`@RestController`只返回对象，对象数据直接以 JSON 或 XML 形式写入 HTTP 响应(Response)中，这种情况属于 RESTful Web服务，这也是目前日常开发所接触的最常用的情况（前后端分离）。
+
+**`@Controller +@ResponseBody` 返回JSON 或 XML 形式数据**，也就是说`@Controller` +`@ResponseBody`= `@RestController`（Spring 4 之后新加的注解）。
 
 ### 二、IoC控制反转
 
@@ -157,6 +183,8 @@ Inversion of Control，控制反转，是一个概念、理论、思想，描述
 为什么用IOC，就是为了减少对代码的改动，从而实现不同的功能，就是解耦合，让各个代码之间关系更小，我的改动就可以更少。
 
 Java中创建对象的方式，构造方法 new或者反射、序列化再读出来、克隆、ioc容器创建。**动态代理也可以创建**
+
+将对象之间的相互依赖关系交给 IoC 容器来管理，并由 IoC 容器完成对象的注入。这样可以很大程度上简化应用的开发，把应用从复杂的依赖关系中解放出来。  **IoC 容器就像是一个工厂一样，当我们需要创建一个对象的时候，只需要配置好配置文件/注解即可，完全不用考虑对象是如何被创建出来的。** 在实际项目中一个 Service 类可能有几百甚至上千个类作为它的底层，假如我们需要实例化这个 Service，你可能要每次都要搞清这个  Service 所有底层类的构造函数，这可能会把人逼疯。如果利用 IoC  的话，你只需要配置好，然后在需要的地方引用就行了，这大大增加了项目的可维护性且降低了开发难度。
 
 #### Ioc使用
 
@@ -271,7 +299,7 @@ Java中创建对象的方式，构造方法 new或者反射、序列化再读出
 
 通过IoC可以实现业务对象之间的解耦合，比如dao和Service之间的解耦合
 
-### AOP 面向切面编程
+### 三、AOP 面向切面编程
 
 就是叫做AOP Aspect Orient Programming，底层就是动态代理。就是动态代理的规范化书写方法。给目标增加功能就是Aspect，切面，特点就是和业务功能没有关系，独立使用的。需要注意的点：
 
@@ -318,12 +346,22 @@ aop的技术实现框架：spring能够做aop的工作，主要在事务处理�
 
 原理就是生成一个继承A的子类，不能是final的，然后重写一些方法或者多写一些方法，用A a=new B();的方法。这个效率高，要求也低。
 
+![SpringAOPProcess](Java框架开发.assets/SpringAOPProcess.jpg)
+
 #### aspectJ
 
 实现aop有两种方式：
 
 1. 使用xml的配置文件，配置全局事务
 2. 使用注解，一般都是如此，有五个注解
+
+#### Spring AOP和AspectJ AOP的区别
+
+**Spring AOP 属于运行时增强，而 AspectJ 是编译时增强。** Spring AOP 基于代理(Proxying)，而 AspectJ 基于字节码操作(Bytecode Manipulation)。
+
+ Spring AOP 已经集成了 AspectJ  ，AspectJ  应该算的上是 Java 生态系统中最完整的 AOP 框架了。AspectJ  相比于 Spring AOP 功能更加强大，但是 Spring AOP 相对来说更简单，
+
+如果我们的切面比较少，那么两者性能差异不大。但是，当切面太多的话，最好选择 AspectJ ，它比Spring AOP 快很多。
 
 ##### aspectJ的使用
 
@@ -418,7 +456,7 @@ aop的技术实现框架：spring能够做aop的工作，主要在事务处理�
 
    有接口的时候我们也可以用cglib代理，需要在bean文件里面声明aop的时候加上，proxy-target-class="true"，这样就用到了cglib代理，然后速度是较快的。
 
-### Spring集成MyBatis
+### 四、Spring集成MyBatis
 
 我们要做的就是两个框架进行集成，像一个框架一样使用，用的技术是IOC。为什么IOC可以？因为IOC能创建对象，可以把MyBatis框架中的对象交给Spring统一创建，开发人员从Spring中获取对象。Spring的强大之处就在于可以整合其他各个框架，靠的就是IoC。
 
@@ -438,9 +476,84 @@ aop的技术实现框架：spring能够做aop的工作，主要在事务处理�
 3. 创建出dao对象。
 4. 使用的都是bean的标签，因为注解我们没有源代码是无法进行操作的。
 
+### 五、Spring常见面试题
 
+#### Spring中的bean的作用域有哪些
 
+- singleton : 唯一 bean 实例，Spring 中的 bean 默认都是单例的。
+- prototype : 每次请求都会创建一个新的 bean 实例。
+- request : 每一次HTTP请求都会产生一个新的bean，该bean仅在当前HTTP request内有效。
+- session : 每一次HTTP请求都会产生一个新的 bean，该bean仅在当前 HTTP session 内有效。
+- global-session：  全局session作用域，仅仅在基于portlet的web应用中才有意义，Spring5已经没有了。Portlet是能够生成语义代码(例如：HTML)片段的小型Java Web插件。它们基于portlet容器，可以像servlet一样处理HTTP请求。但是，与 servlet 不同，每个 portlet  都有不同的会话
 
+是在这个地方确定的用哪一个作用域：
+
+```xml
+<bean id="dao" class="com.demo.dao.PersonDAOImpl" scope="prototype" /bean>
+```
+
+#### Spring中单例bean的线程安全问题
+
+虽然是单例的，但是当多个线程操作这一个对象的时候，进行写操作就存在一个线程安全问题。一般情况下我们常用的Controller Service Dao这些Bean是无状态的，没有状态的Bean不能保存数据，因此是线程安全的。问题其实就是出现在只有一个bean但是被多个线程使用了。
+
+常见的有 2 种解决办法：
+
+1. 在类中定义一个 `ThreadLocal` 成员变量，将需要的可变成员变量保存在  `ThreadLocal`  中（推荐的一种方式）。本地线程，每一个运行的线程都有一个自己的本地线程，保存在内存里面。
+2. 改变 Bean 的作用域为 “prototype”：每次请求都会创建一个新的 bean 实例，自然不会存在线程安全问题。
+
+#### @Component和@Bean的区别
+
+1. 作用对象不同，第一个注解作用于类，和Service等匹配，意思是把类作为一个bean放进框架生成对象。@Bean作用于方法
+2. `@Component`通常是通过类路径扫描来自动侦测以及自动装配到Spring容器中（我们可以使用 `@ComponentScan` 注解定义要扫描的路径从中找出标识了需要装配的类自动装配到 Spring 的 bean 容器中）。`@Bean` 注解通常是我们在标有该注解的方法中定义产生这个 bean,`@Bean`告诉了Spring这是某个类的示例，当我需要用它的时候还给我。
+3. `@Bean` 注解比 `Component` 注解的自定义性更强，而且很多地方我们只能通过 `@Bean` 注解来注册bean。比如当我们引用第三方库中的类需要装配到 `Spring`容器时，则只能通过 `@Bean`来实现。@Bean的意思是将方法的返回值作为一个对象装配到Spring容器里面。
+
+#### Bean的生命周期
+
+![Spring Bean 生命周期](Java框架开发.assets/5496407.jpg)
+
+#### Spring MVC
+
+![img](Java框架开发.assets/60679444.jpg)
+
+也就是Model View Controller三者
+
+#### Spring框架里面用到的设计模式
+
+**工厂设计模式** : Spring使用工厂模式通过 `BeanFactory`、`ApplicationContext` 创建 bean 对象。
+
+**代理设计模式** : Spring AOP 功能的实现。
+
+**单例设计模式** : Spring 中的 Bean 默认都是单例的。
+
+**模板方法模式** : Spring 中 `jdbcTemplate`、`hibernateTemplate` 等以 Template 结尾的对数据库操作的类，它们就使用到了模板模式。
+
+**包装器设计模式** : 我们的项目需要连接多个数据库，而且不同的客户在每次访问中根据需要会去访问不同的数据库。这种模式让我们可以根据客户的需求能够动态切换不同的数据源。
+
+**观察者模式:** Spring 事件驱动模型就是观察者模式很经典的一个应用。
+
+**适配器模式** :Spring AOP 的增强或通知(Advice)使用到了适配器模式、spring MVC 中也是用到了适配器模式适配`Controller`。
+
+#### Spring事务中的隔离级别
+
+**TransactionDefinition 接口中定义了五个表示隔离级别的常量：**
+
+- **TransactionDefinition.ISOLATION_DEFAULT:**  使用后端数据库默认的隔离级别，Mysql 默认采用的 REPEATABLE_READ隔离级别 Oracle 默认采用的 READ_COMMITTED隔离级别.
+- **TransactionDefinition.ISOLATION_READ_UNCOMMITTED:** 最低的隔离级别，允许读取尚未提交的数据变更，**可能会导致脏读、幻读或不可重复读**，也就是未提交读
+- **TransactionDefinition.ISOLATION_READ_COMMITTED:**   允许读取并发事务已经提交的数据，**可以阻止脏读，但是幻读或不可重复读仍有可能发生**，就是提交读
+- **TransactionDefinition.ISOLATION_REPEATABLE_READ:**  对同一字段的多次读取结果都是一致的，除非数据是被本身事务自己所修改，**可以阻止脏读和不可重复读，但幻读仍有可能发生。**就是可重复读
+- **TransactionDefinition.ISOLATION_SERIALIZABLE:**   最高的隔离级别，完全服从ACID的隔离级别。所有的事务依次逐个执行，这样事务之间就完全不可能产生干扰，也就是说，**该级别可以防止脏读、不可重复读以及幻读**。但是这将严重影响程序的性能。通常情况下也不会用到该级别。就是完全串行化
+
+#### @Transaction(rollbackFor=Exception.class)注解
+
+当有这个注解在类上面的时候，该类的所有public方法都会具有这个类型的事务属性。如果类或者方法有这个注解，那么在这个类里面抛出异常就会回滚，数据库里面的数据也会回滚。
+
+如果不配置rollbackFor属性，那么事务只会在遇到RuntimeException的时候才会回滚，加上了这个就会让它在遇到非运行时异常也回滚。
+
+#### JPA
+
+JPA全称是Java Persistence API，
+
+想要在Entity里面有一个属性，但是这个属性不要被存到数据库里面，就需要加一个@Transient注解，表示不让它被持久化数据库存储。
 
 
 

@@ -542,6 +542,158 @@ path 为本机的 log 地址，`logging.level` 后面可以根据包路径配置
 
 WebJars 是将客户端（浏览器）资源（JavaScript，Css等）打成 Jar 包文件，以对资源进行统一依赖管理。WebJars 的 Jar 包部署在 Maven 中央仓库上。
 
+## 三、事务详解
+
+### 什么是事务
+
+事务就是逻辑上的一组操作，要么都执行要么都不执行。事务是否生效要看用的数据库引擎是否是事务型数据库，比如MySQL的InnoDB引擎就是，但是MyISAM就不是。
+
+### Spring支持的两种事务管理方式
+
+1. 编程式管理，通过TransactionTemplate或者TransactionManager对象进行事务管理，实际很少用
+2. 声明式的事务管理，推荐使用，代码侵入性小，实际上是基于AOP实现的，基于@Transactional进行管理的方式使用最多，
+
+### 事务属性：TransactionDefinition
+
+![img](SpringBoot.assets/a616b84d-9eea-4ad1-b4fc-461ff05e951d.png)
+
+
+
+#### 1. 事务的传播行为
+
+在事务之间可能有相互调用的事情，那么回滚就应该大家一起回滚。有以下常量定义传播行为：
+
+```java
+public interface TransactionDefinition {
+    int PROPAGATION_REQUIRED = 0;
+    int PROPAGATION_SUPPORTS = 1;
+    int PROPAGATION_MANDATORY = 2;
+    int PROPAGATION_REQUIRES_NEW = 3;
+    int PROPAGATION_NOT_SUPPORTED = 4;
+    int PROPAGATION_NEVER = 5;
+    int PROPAGATION_NESTED = 6;
+    ......
+}//为了方便，又定义了一个枚举类，
+
+package org.springframework.transaction.annotation;
+
+import org.springframework.transaction.TransactionDefinition;
+
+public enum Propagation {
+
+    REQUIRED(TransactionDefinition.PROPAGATION_REQUIRED),
+
+    SUPPORTS(TransactionDefinition.PROPAGATION_SUPPORTS),
+
+    MANDATORY(TransactionDefinition.PROPAGATION_MANDATORY),
+
+    REQUIRES_NEW(TransactionDefinition.PROPAGATION_REQUIRES_NEW),
+
+    NOT_SUPPORTED(TransactionDefinition.PROPAGATION_NOT_SUPPORTED),
+
+    NEVER(TransactionDefinition.PROPAGATION_NEVER),
+
+    NESTED(TransactionDefinition.PROPAGATION_NESTED);
+
+
+    private final int value;
+
+    Propagation(int value) {
+        this.value = value;
+    }
+
+    public int value() {
+        return this.value;
+    }
+
+}
+```
+
+相关类说明：
+
+1. **`TransactionDefinition.PROPAGATION_REQUIRED`**
+
+   使用最多的一个行为，@Transactional默认用的就是这个传播行为。如果当前存在事务就加入，如果没有就创建一个新的事务。
+
+   1. 如果外部方法没有开启事务的话，`Propagation.REQUIRED`修饰的内部方法会新开启自己的事务，且开启的事务相互独立，互不干扰。
+   2. 如果外部方法开启事务并且被`Propagation.REQUIRED`的话，所有`Propagation.REQUIRED`修饰的内部方法和外部方法均属于同一事务 ，只要一个方法回滚，整个事务均回滚。
+
+2. **`TransactionDefinition.PROPAGATION_REQUIRES_NEW`**
+
+   创建一个新的事务，如果当前存在事务，则把当前事务挂起。也就是说不管外部方法是否开启事务，`Propagation.REQUIRES_NEW`修饰的内部方法会新开启自己的事务，且开启的事务相互独立，互不干扰。
+
+3. **`TransactionDefinition.PROPAGATION_NESTED`**
+
+   当前如果存在事务，就新建一个事务作为当前事务的嵌套事务来运行。外部主事务回滚的话，子事务也会回滚，而内部子事务可以单独回滚而不影响外部主事务和其他子事务。
+
+4. **`TransactionDefinition.PROPAGATION_MANDATORY`** 强制的
+
+   如果存在事务就加入，如果没有就抛出异常
+
+#### 2. 事务隔离级别
+
+还是那几个，MySQL的InnoDB默认是可重复读，但是不保证幻影读，应该用加锁来保证没有幻影读。
+
+InnoDB存储引擎提供了对XA事务的支持，并通过XA事务来支持分布式事务的实现。分布式事务指的是允许多个独立的事务资源（transactional  resources）参与到一个全局的事务中。事务资源通常是关系型数据库系统，但也可以是其他类型的资源。全局事务要求在其中的所有参与的事务要么都提交，要么都回滚，这对于事务原有的ACID要求又有了提高。另外，在使用分布式事务时，InnoDB存储引擎的事务隔离级别必须设置为SERIALIZABLE。
+
+#### 3. 事务超时属性
+
+超时了会回滚
+
+#### 4. 事务只读属性
+
+如果只读事务，那么可以加一个@Transactional，这样数据库会进行一个优化，可能放到一个事务进行执行。如果不加的话，数据库就会默认一个句子一个sql，这样就会比较麻烦
+
+#### 5. 事务回滚规则
+
+只有遇到运行时异常时才会回滚，Error也会导致回滚，遇到检查型Checked异常的时候不会回滚
+
+要自定义遇到某个异常的时候回滚就要写成
+
+@Transactional(rollbackFor = MyException.class)
+
+### @Transactional注解使用
+
+#### 使用范围
+
+推荐加到方法上，但是只对public有效。
+
+如果在类上面，就代表其对类中的所有public方法有效。
+
+不推荐在接口上使用
+
+#### 常用配置参数
+
+**`@Transactional` 的常用配置参数总结：**
+
+| 属性名      | 说明                                                         |
+| ----------- | ------------------------------------------------------------ |
+| propagation | 事务的传播行为，默认值为 REQUIRED，可选的值在上面介绍过      |
+| isolation   | 事务的隔离级别，默认值采用 DEFAULT，可选的值在上面介绍过     |
+| timeout     | 事务的超时时间，默认值为-1（不会超时）。如果超过该时间限制但事务还没有完成，则自动回滚事务。 |
+| readOnly    | 指定事务是否为只读事务，默认值为 false。                     |
+| rollbackFor | 用于指定能够触发事务回滚的异常类型，并且可以指定多个异常类型。 |
+
+#### @Transactional事务注解原理
+
+基于AOP实现的，AOP是使用动态代理实现的，有接口就用jdk的动态代理，否则就是Cglib代理。
+
+如果一个类或者一个类中的 public 方法上被标注`@Transactional` 注解的话，Spring 容器就会在启动的时候为其创建一个代理类，在调用被`@Transactional` 注解的 public 方法的时候，实际调用的是，`TransactionInterceptor` 类中的 `invoke()`方法。这个方法的作用就是在目标方法之前开启事务，方法执行过程中如果遇到异常的时候回滚事务，方法调用完成之后提交事务。就是写一个invoke方法，在前面开启事务，在后面捕捉异常回滚事务，或者提交事务。
+
+`TransactionInterceptor` 类中的 `invoke()`方法内部实际调用的是 `TransactionAspectSupport` 类的 `invokeWithinTransaction()`方法。由于新版本的 Spring 对这部分重写很大，而且用到了很多响应式编程的知识，这里就不列源码了。
+
+如果在一个类里面一个方法调用另一个方法，调用的方法没有注解，被调用的有注解，这样内部的注解就会失效。这个只在Spring AOP的时候才会有问题，AspectJ没问题。因为Spring的aop必须在类以外才有效，所以同一个类里面的相互调用进行aop是失效的。
+
+
+
+
+
+
+
+
+
+
+
 # Springboot入门学习
 
 ## 微服务是什么
@@ -616,7 +768,7 @@ class MockConfiguration {
 }
 ```
 
-任何一个标注了 @Bean 的方法，其返回值将作为一个 bean 定义注册到 Spring 的 IoC 容器，方法名将默认成为该 bean 定义的 id。
+任何一个标注了 @Bean 的方法，其返回值将作为一个 bean 定义注册到 Spring 的 IoC容器，方法名将默认成为该 bean 定义的 id。
 
 #### 2）注册 bean **定义层面**
 
@@ -675,236 +827,6 @@ public class MockConfiguration {
 
  所以，原来 Spring IoC 容器中有的特性（features）在 JavaConfig 中都可以表述，只是换了一种形式而已，而且，通过声明相应的 Java Annotation 反而“内聚”一处，变得更加简洁明了了。
 
-### 相关Annotation
-
-1. ComponentScan 用于注解在类中的使用的声明
-
-   @ComponentScan 对应 XML 配置形式中的 <context：component-scan> 元素，用于配合一些元信息 Java Annotation，比如 @Component 和 @Repository 等，将标注了这些元信息 Annotation 的  bean 定义类批量采集到 Spring 的 IoC 容器中。
-
-    我们可以通过 basePackages 等属性来细粒度地定制 @ComponentScan 自动扫描的范围，如果不指定，则默认 Spring 框架实现会从声明 @ComponentScan 所在类的 package 进行扫描。
-
-    @ComponentScan 是 SpringBoot 框架魔法得以实现的一个关键组件，大家可以重点关注，我们后面还会遇到它。
-
-2. @PropertySource 与 @PropertySources
-
-   @PropertySource 用于从某些地方加载 *.properties 文件内容，并将其中的属性加载到 IoC 容器中，便于填充一些  bean 定义属性的占位符（placeholder），当然，这需要 PropertySourcesPlaceholderConfigurer  的配合。
-
-   ```java
-   @Configuration
-   @PropertySource("classpath:1.properties")
-   @PropertySource("classpath:2.properties")
-   @PropertySource("...")
-   public class XConfiguration{
-       ...
-   }
-   ```
-
-3. @Import 与 @ImportResource
-
-   在 XML 形式的配置中，我们通过 \<import resource="XXX.xml"/>  的形式将多个分开的容器配置合到一个配置中，在 JavaConfig 形式的配置中，我们则使用 @Import 这个 Annotation  完成同样目的：
-
-   @Import 只负责引入 JavaConfig 形式定义的 IoC 容器配置，如果有一些遗留的配置或者遗留系统需要以 XML 形式来配置（比如 dubbo 框架），我们依然可以通过 @ImportResource 将它们一起合并到当前 JavaConfig 配置的容器中。
-
-#### Spring注解
-
-##### 1.声明bean的注解
-
-**@Component** 组件，没有明确的角色，调用无参构造创建一个bean对象，并把对象存入spring的IOC容器，交由spring容器进行管理。相当于在xml中配置一个bean。value：指定bean的id。如果不指定value属性，默认bean的id是当前类的类名。首字母小写。
-
-**@Service** 在业务逻辑层使用（service层）
-
-**@Repository** 在数据访问层使用（dao层）
-
-**@Controller** 在展现层使用，控制器的声明（C）
-
-@RestController:
-
-用于标注控制层组件(如struts中的action)，包含@Controller和@ResponseBody；
-
-@Controller:
-
-用于标注是控制层组件，**需要返回页面时请用@Controller而不是@RestController**；
-
-@**Bean**用于把当前方法的返回值作为bean对象存入spring的ioc容器里面，name用于指定bean的id，不写的时候那么就默认是当前方法的名称小写，
-
-```java
-/**
- * 获取DataSource对象
- * @return
- */
-@Bean(value = "dataSource")//返回值作为对象存入容器中
-public DataSource getDataSource() {
-    try {
-        ComboPooledDataSource dataSource = new ComboPooledDataSource();
-        dataSource.setDriverClass(this.driver);
-        dataSource.setJdbcUrl(this.url);
-        dataSource.setUser(this.username);
-        dataSource.setPassword(this.password);
-        return dataSource;
-    }catch (Exception exception) {
-        throw new RuntimeException(exception);
-    }
-}
-```
-
-##### 2.注入bean的注解
-
-@Autowired：由Spring提供，@Autowire和@Resource都是Spring支持的注解形式动态装配bean的方式。Autowire默认按照类型(byType)装配，如果想要按照名称(byName)装配，需结合@Qualifier注解使用。要求依赖对象存在，如果不存在就会在注入的时候抛出异常
-
-@Qualifier：byName进行注入，不能独立使用，要和Autowire一起使用，value属性用于指定要注入的bean的id，可以省略不写
-
-@Inject：由JSR-330提供
-
-@Resource：由JSR-250提供，@Autowire和@Resource都是Spring支持的注解形式动态装配bean的方式。@Resource默认按照名称(byName)装配，名称可以通过name属性指定。如果没有指定name，则注解在字段上时，默认取（name=字段名称）装配。如果注解在setter方法上时，默认取（name=属性名称）装配。
-
-```
-name：用于指定要注入的bean的id
-type：用于指定要注入的bean的type
-```
-
-```
-1.如果同时指定name和type属性，则找到唯一匹配的bean装配，未找到则抛异常；
-2.如果指定name属性，则按照名称(byName)装配，未找到则抛异常；
-3.如果指定type属性，则按照类型(byType)装配，未找到或者找到多个则抛异常；
-4.既未指定name属性，又未指定type属性，则按照名称(byName)装配；如果未找到，则按照类型(byType)装配。
-```
-
-都可以注解在set方法和属性上，推荐注解在属性上（一目了然，少写代码）。
-
-@Value：通过@Value可以将外部的值动态注入到Bean中，可以为基本类型数据和String类型数据的变量注入数据
-
-```java
-// 1.基本类型数据和String类型数据的变量注入数据
-@Value("tom") 
-private String name;
-@Value("18") 
-private Integer age;
-
-
-// 2.从properties配置文件中获取数据并设置到成员变量中
-// 2.1jdbcConfig.properties配置文件定义如下
-jdbc.driver \= com.mysql.jdbc.Driver  
-jdbc.url \= jdbc:mysql://localhost:3306/eesy  
-jdbc.username \= root  
-jdbc.password \= root
-
-// 2.2获取数据如下
-@Value("${jdbc.driver}")  
-private String driver;
-
-@Value("${jdbc.url}")  
-private String url;  
-  
-@Value("${jdbc.username}")  
-private String username;  
-  
-@Value("${jdbc.password}")  
-private String password;
-
-》注入普通字符
-
-    @Value("Michael Jackson")
-    String name;
-
-》注入操作系统属性
-
-    @Value("#{systemProperties['os.name']}")
-    String osName;
-
-》注入表达式结果
-
-    @Value("#{ T(java.lang.Math).random() * 100 }") 
-    String randomNumber;
-
-》注入其它bean属性
-
-    @Value("#{domeClass.name}")
-    String name;
-
-》注入文件资源
-
-    @Value("classpath:com/hgs/hello/test.txt")
-    String Resource file;
-
-》注入网站资源
-
-    @Value("http://www.cznovel.com")
-    Resource url;
-
-》注入配置文件
-
-    @Value("${book.name}")
-    String bookName;
-```
-
-##### 3.java配置类相关注解
-
-@Configuration 声明当前类为配置类，相当于xml形式的Spring配置（类上）
-
-@Bean 注解在方法上，声明当前方法的返回值为一个bean，替代xml中的方式（方法上）
-
-@Configuration 声明当前类为配置类，其中内部组合了@Component注解，表明这个类是一个bean（类上）
-
-@ComponentScan 用于对Component进行扫描，相当于xml中的（类上）
-
-@WishlyConfiguration 为@Configuration与@ComponentScan的组合注解，可以替代这两个注解
-
-##### 4.切面（AOP）相关注解
-
-Spring支持AspectJ的注解式切面编程。
-
-**@Aspect** 声明一个切面（类上） 
- 使用**@After、@Before、@Around**定义建言（advice），可直接将拦截规则（切点）作为参数。
-
-**@After** 在方法执行之后执行（方法上） 
-**@Before** 在方法执行之前执行（方法上） 
-**@Around** 在方法执行之前与之后执行（方法上）
-
-**@PointCut** 声明切点 
- 在java配置类中使用@EnableAspectJAutoProxy注解开启Spring对AspectJ代理的支持（类上）
-
-##### 5.@Bean的属性支持
-
-**@Scope** 设置Spring容器如何新建Bean实例（方法上，得有@Bean） 
- 其设置类型包括：
-
-Singleton （单例,一个Spring容器中只有一个bean实例，默认模式）, 
- Protetype （每次调用新建一个bean）, 
- Request （web项目中，给每个http request新建一个bean）, 
- Session （web项目中，给每个http session新建一个bean）, 
- GlobalSession（给每一个 global http session新建一个Bean实例）
-
-**@StepScope** 在Spring Batch中还有涉及
-
-**@PostConstruct** 由JSR-250提供，在构造函数执行完之后执行，等价于xml配置文件中bean的initMethod
-
-**@PreDestory** 由JSR-250提供，在Bean销毁之前执行，等价于xml配置文件中bean的destroyMethod
-
-#### SpringMVC部分
-
-**@EnableWebMvc** 在配置类中开启Web MVC的配置支持，如一些ViewResolver或者MessageConverter等，若无此句，重写WebMvcConfigurerAdapter方法（用于对SpringMVC的配置）。
-
-**@Controller** 声明该类为SpringMVC中的Controller
-
-**@RequestMapping** 用于映射Web请求，包括访问路径和参数（类或方法上）
-
-**@ResponseBody** 支持将返回值放在response内，而不是一个页面，通常用户返回json数据（返回值旁或方法上）
-
-**@RequestBody** 允许request的参数在request体中，而不是在直接连接在地址后面。（放在参数前）
-
-**@PathVariable** 用于接收路径参数，比如@RequestMapping(“/hello/{name}”)申明的路径，将注解放在参数中前，即可获取该值，通常作为Restful的接口实现方法。
-
-**@RestController** 该注解为一个组合注解，相当于@Controller和@ResponseBody的组合，注解在类上，意味着，该Controller的所有方法都默认加上了@ResponseBody。
-
-**@ControllerAdvice** 通过该注解，我们可以将对于控制器的全局配置放置在同一个位置，注解了@Controller的类的方法可使用@ExceptionHandler、@InitBinder、@ModelAttribute注解到方法上， 
- 这对所有注解了 @RequestMapping的控制器内的方法有效。
-
-**@ExceptionHandler** 用于全局处理控制器里的异常
-
-**@InitBinder** 用来设置WebDataBinder，WebDataBinder用来自动绑定前台请求参数到Model中。
-
-**@ModelAttribute** 本来的作用是绑定键值对到Model里，在@ControllerAdvice中是让全局的@RequestMapping都能获得在此处设置的键值对。
-
 ## SpringBoot介绍
 
 ### 核心功能
@@ -946,7 +868,6 @@ Spring Boot 的神奇的不是借助于代码生成来实现的，而是通过�
 
 #### 2）缺点
 
-- 版本迭代速度很快，一些模块改动很大。
 - 由于不用自己做配置，报错时很难定位。
 - 网上现成的解决方案比较少。
 
@@ -1337,7 +1258,398 @@ SpringBoot 还允许我们提供更多的 HealthIndicator 实现，只要将这�
 
 不管是 spring-boot-starter-actuator 默认提供的 endpoint 实现，还是我们自己给出的 endpoint  实现，如果只是实现了放在 SpringBoot  应用的“身体内部”，那么它们不会发挥任何作用，只有将它们采集的信息暴露开放给外部监控者，或者允许外部监控者访问它们，这些 endpoints  才会真正发挥出它们的最大“功效”。
 
+
+
 # 实习问题过程记录
+
+## 注解
+
+### 相关Annotation
+
+1. ComponentScan 用于注解在类中的使用的声明
+
+   @ComponentScan 对应 XML 配置形式中的 <context：component-scan> 元素，用于配合一些元信息 Java Annotation，比如 @Component 和 @Repository 等，将标注了这些元信息 Annotation 的  bean 定义类批量采集到 Spring 的 IoC 容器中。
+
+    我们可以通过 basePackages 等属性来细粒度地定制 @ComponentScan 自动扫描的范围，如果不指定，则默认 Spring 框架实现会从声明 @ComponentScan 所在类的 package 进行扫描。
+
+    @ComponentScan 是 SpringBoot 框架魔法得以实现的一个关键组件，大家可以重点关注，我们后面还会遇到它。
+
+2. @PropertySource 与 @PropertySources
+
+   @PropertySource 用于从某些地方加载 *.properties 文件内容，并将其中的属性加载到 IoC 容器中，便于填充一些  bean 定义属性的占位符（placeholder），当然，这需要 PropertySourcesPlaceholderConfigurer  的配合。
+
+   ```java
+   @Configuration
+   @PropertySource("classpath:1.properties")
+   @PropertySource("classpath:2.properties")
+   @PropertySource("...")
+   public class XConfiguration{
+       ...
+   }
+   ```
+
+3. @Import 与 @ImportResource
+
+   在 XML 形式的配置中，我们通过 \<import resource="XXX.xml"/>  的形式将多个分开的容器配置合到一个配置中，在 JavaConfig 形式的配置中，我们则使用 @Import 这个 Annotation  完成同样目的：
+
+   @Import 只负责引入 JavaConfig 形式定义的 IoC 容器配置，如果有一些遗留的配置或者遗留系统需要以 XML 形式来配置（比如 dubbo 框架），我们依然可以通过 @ImportResource 将它们一起合并到当前 JavaConfig 配置的容器中。
+
+#### Spring注解
+
+##### 1.声明bean的注解
+
+**@Component** 组件，没有明确的角色，调用无参构造创建一个bean对象，并把对象存入spring的IOC容器，交由spring容器进行管理。相当于在xml中配置一个bean。value：指定bean的id。如果不指定value属性，默认bean的id是当前类的类名。首字母小写。
+
+**@Service** 在业务逻辑层使用（service层）
+
+**@Repository** 在数据访问层使用（dao层）
+
+**@Controller** 在展现层使用，控制器的声明（C）
+
+@RestController:
+
+用于标注控制层组件(如struts中的action)，包含@Controller和@ResponseBody；
+
+@Controller:
+
+用于标注是控制层组件，**需要返回页面时请用@Controller而不是@RestController**；
+
+@**Bean**用于把当前方法的返回值作为bean对象存入spring的ioc容器里面，name用于指定bean的id，不写的时候那么就默认是当前方法的名称小写，
+
+```java
+/**
+ * 获取DataSource对象
+ * @return
+ */
+@Bean(value = "dataSource")//返回值作为对象存入容器中
+public DataSource getDataSource() {
+    try {
+        ComboPooledDataSource dataSource = new ComboPooledDataSource();
+        dataSource.setDriverClass(this.driver);
+        dataSource.setJdbcUrl(this.url);
+        dataSource.setUser(this.username);
+        dataSource.setPassword(this.password);
+        return dataSource;
+    }catch (Exception exception) {
+        throw new RuntimeException(exception);
+    }
+}
+```
+
+##### 2.注入bean的注解
+
+@Autowired：由Spring提供，@Autowire和@Resource都是Spring支持的注解形式动态装配bean的方式。Autowire默认按照类型(byType)装配，如果想要按照名称(byName)装配，需结合@Qualifier注解使用。要求依赖对象存在，如果不存在就会在注入的时候抛出异常
+
+@Qualifier：byName进行注入，不能独立使用，要和Autowire一起使用，value属性用于指定要注入的bean的id，可以省略不写
+
+@Inject：由JSR-330提供
+
+@Resource：由JSR-250提供，@Autowire和@Resource都是Spring支持的注解形式动态装配bean的方式。@Resource默认按照名称(byName)装配，名称可以通过name属性指定。如果没有指定name，则注解在字段上时，默认取（name=字段名称）装配。如果注解在setter方法上时，默认取（name=属性名称）装配。
+
+```
+name：用于指定要注入的bean的id
+type：用于指定要注入的bean的type
+```
+
+```
+1.如果同时指定name和type属性，则找到唯一匹配的bean装配，未找到则抛异常；
+2.如果指定name属性，则按照名称(byName)装配，未找到则抛异常；
+3.如果指定type属性，则按照类型(byType)装配，未找到或者找到多个则抛异常；
+4.既未指定name属性，又未指定type属性，则按照名称(byName)装配；如果未找到，则按照类型(byType)装配。
+```
+
+都可以注解在set方法和属性上，推荐注解在属性上（一目了然，少写代码）。
+
+@Value：通过@Value可以将外部的值动态注入到Bean中，可以为基本类型数据和String类型数据的变量注入数据
+
+```java
+// 1.基本类型数据和String类型数据的变量注入数据
+@Value("tom") 
+private String name;
+@Value("18") 
+private Integer age;
+
+
+// 2.从properties配置文件中获取数据并设置到成员变量中
+// 2.1jdbcConfig.properties配置文件定义如下
+jdbc.driver \= com.mysql.jdbc.Driver  
+jdbc.url \= jdbc:mysql://localhost:3306/eesy  
+jdbc.username \= root  
+jdbc.password \= root
+
+// 2.2获取数据如下 配置文件前面加${}
+@Value("${jdbc.driver}")  
+private String driver;
+
+@Value("${jdbc.url}")  
+private String url;  
+  
+@Value("${jdbc.username}")  
+private String username;  
+  
+@Value("${jdbc.password}")  
+private String password;
+
+》注入普通字符
+
+    @Value("Michael Jackson")
+    String name;
+
+》注入操作系统属性
+
+    @Value("#{systemProperties['os.name']}")
+    String osName;
+
+》注入表达式结果
+
+    @Value("#{ T(java.lang.Math).random() * 100 }") 
+    String randomNumber;
+
+》注入其它bean属性
+
+    @Value("#{domeClass.name}")
+    String name;
+
+》注入文件资源
+
+    @Value("classpath:com/hgs/hello/test.txt")
+    String Resource file;
+
+》注入网站资源
+
+    @Value("http://www.cznovel.com")
+    Resource url;
+
+》注入配置文件
+
+    @Value("${book.name}")
+    String bookName;
+```
+
+##### 3.java配置类相关注解
+
+@Configuration 声明当前类为配置类，相当于xml形式的Spring配置（类上），比如MySQL Config
+
+@Bean 注解在方法上，声明当前方法的返回值为一个bean，替代xml中的方式（方法上）
+
+@Configuration 声明当前类为配置类，其中内部组合了@Component注解，表明这个类是一个bean（类上）
+
+@ComponentScan 用于对Component进行扫描，相当于xml中的（类上）
+
+@WishlyConfiguration 为@Configuration与@ComponentScan的组合注解，可以替代这两个注解
+
+@ConfigurationProperties(prefix = "library")可以读取相关配置文件，加载到我么你的一个类里面，作为bean进行使用
+
+@PropertySource("classpath:website.properties")可以用来指定某个配置文件
+
+##### 4.切面（AOP）相关注解
+
+Spring支持AspectJ的注解式切面编程。
+
+**@Aspect** 声明一个切面（类上） 
+ 使用**@After、@Before、@Around**定义建言（advice），可直接将拦截规则（切点）作为参数。
+
+**@After** 在方法执行之后执行（方法上） 
+**@Before** 在方法执行之前执行（方法上） 
+**@Around** 在方法执行之前与之后执行（方法上）
+
+**@PointCut** 声明切点 
+ 在java配置类中使用@EnableAspectJAutoProxy注解开启Spring对AspectJ代理的支持（类上）
+
+##### 5.@Bean的属性支持
+
+**@Scope** 设置Spring容器如何新建Bean实例（方法上，得有@Bean） 
+ 其设置类型包括：
+
+Singleton （单例,一个Spring容器中只有一个bean实例，默认模式）, 
+ Protetype （每次调用新建一个bean）, 
+ Request （web项目中，给每个http request新建一个bean）, 
+ Session （web项目中，给每个http session新建一个bean）, 
+ GlobalSession（给每一个 global http session新建一个Bean实例）
+
+**说明Bean的作用域**
+
+**@StepScope** 在Spring Batch中还有涉及
+
+**@PostConstruct** 由JSR-250提供，在构造函数执行完之后执行，等价于xml配置文件中bean的initMethod
+
+**@PreDestory** 由JSR-250提供，在Bean销毁之前执行，等价于xml配置文件中bean的destroyMethod
+
+#### SpringMVC部分
+
+**@EnableWebMvc** 在配置类中开启Web MVC的配置支持，如一些ViewResolver或者MessageConverter等，若无此句，重写WebMvcConfigurerAdapter方法（用于对SpringMVC的配置）。
+
+**@Controller** 声明该类为SpringMVC中的Controller
+
+**@RequestMapping** 用于映射Web请求，包括访问路径和参数（类或方法上）
+
+**@ResponseBody** 支持将返回值放在response内，而不是一个页面，通常用户返回json数据（返回值旁或方法上）
+
+**@RequestBody** 允许request的参数在request体中，而不是在直接连接在地址后面。（放在参数前）
+
+**@PathVariable** 用于接收路径参数，比如@RequestMapping(“/hello/{name}”)申明的路径，将注解放在参数中前，即可获取该值，通常作为Restful的接口实现方法。
+
+**@RestController** 该注解为一个组合注解，相当于@Controller和@ResponseBody的组合，注解在类上，意味着，该Controller的所有方法都默认加上了@ResponseBody。
+
+**@ControllerAdvice** 通过该注解，我们可以将对于控制器的全局配置放置在同一个位置，注解了@Controller的类的方法可使用@ExceptionHandler、@InitBinder、@ModelAttribute注解到方法上， 
+ 这对所有注解了 @RequestMapping的控制器内的方法有效。
+
+**@ExceptionHandler** 用于全局处理控制器里的异常，@ExceptionHandler(MethodArgumentNotValidException.class)比如这个就是处理这个异常类型
+
+**@InitBinder** 用来设置WebDataBinder，WebDataBinder用来自动绑定前台请求参数到Model中。
+
+**@ModelAttribute** 本来的作用是绑定键值对到Model里，在@ControllerAdvice中是让全局的@RequestMapping都能获得在此处设置的键值对。
+
+#### 数据校验部分
+
+`@NotEmpty` 被注释的字符串的不能为 null 也不能为空
+
+`@NotBlank` 被注释的字符串非 null，并且必须包含一个非空白字符
+
+`@Null` 被注释的元素必须为 null
+
+`@NotNull` 被注释的元素必须不为 null
+
+`@AssertTrue` 被注释的元素必须为 true
+
+`@AssertFalse` 被注释的元素必须为 false
+
+`@Pattern(regex=,flag=)`被注释的元素必须符合指定的正则表达式
+
+`@Email` 被注释的元素必须是 Email 格式。
+
+`@Min(value)`被注释的元素必须是一个数字，其值必须大于等于指定的最小值
+
+`@Max(value)`被注释的元素必须是一个数字，其值必须小于等于指定的最大值
+
+`@DecimalMin(value)`被注释的元素必须是一个数字，其值必须大于等于指定的最小值
+
+`@DecimalMax(value)` 被注释的元素必须是一个数字，其值必须小于等于指定的最大值
+
+`@Size(max=, min=)`被注释的元素的大小必须在指定的范围内
+
+`@Digits (integer, fraction)`被注释的元素必须是一个数字，其值必须在可接受的范围内
+
+`@Past`被注释的元素必须是一个过去的日期
+
+`@Future` 被注释的元素必须是一个将来的日期
+
+以上那些事在类里面对成员变量的注解，我们在传输的时候就在获取的参数前面加上@Valid注解
+
+```java
+public ResponseEntity<Person> getPerson(@RequestBody @Valid Person person) {
+        return ResponseEntity.ok().body(person);
+    }
+```
+
+同时还要在类上面加上@Validated注解
+
+#### 全局处理Controller层异常
+
+1. `@ControllerAdvice` :注解定义全局异常处理类
+2. `@ExceptionHandler` :注解声明异常处理方法
+
+#### JPA相关
+
+@Entity声明一个类对应一个数据库实体，@Table(name="role")对应一个表名
+
+@Id声明一个字段是主键，通过 `@GeneratedValue`直接使用 JPA 内置提供的四种主键生成策略来指定主键生成策略。默认用的是AUTO，MySQL用的一般是Identity自增方式
+
+```java
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+private Long id;
+
+//其中四种类型的定义如下：
+public enum GenerationType {
+
+    /**
+     * 使用一个特定的数据库表格来保存主键
+     * 持久化引擎通过关系数据库的一张特定的表格来生成主键,
+     */
+    TABLE,
+
+    /**
+     *在某些数据库中,不支持主键自增长,比如Oracle、PostgreSQL其提供了一种叫做"序列(sequence)"的机制生成主键
+     */
+    SEQUENCE,
+
+    /**
+     * 主键自增长
+     */
+    IDENTITY,
+
+    /**
+     *把主键生成策略交给持久化引擎(persistence engine),
+     *持久化引擎会根据数据库在以上三种主键生成 策略中选择其中一种
+     */
+    AUTO
+}
+```
+
+@Column设置字段类型，定义相关表中的列名称等
+
+@Transient表示不把这个成员对应到数据库里面去
+
+@Lob声明某个字段是大字段，
+
+@Enumerated表示枚举字段，枚举类里面存储相关信息，然后加在成员前面就会让数据库里面存的是枚举类的信息如MALE或者FEMALE
+
+`@CreatedDate`: 表示该字段为创建时间时间字段，在这个实体被 insert 的时候，会设置，就是可以直接设置创建时间到标识的成员上
+
+`@CreatedBy` :表示该字段为创建人，在这个实体被 insert 的时候，会设置值
+
+`@LastModifiedDate`、`@LastModifiedBy`同理。
+
+`@EnableJpaAuditing`：开启 JPA 审计功能。
+
+@Modifying注解提示JPA这个操作是修改操作
+
+`@OneToOne` 声明一对一关系
+
+`@OneToMany` 声明一对多关系
+
+`@ManyToOne`声明多对一关系
+
+`@MangToMang`声明多对多关系
+
+#### 事务@Transactional
+
+在要开启事务的方法上使用这个注解就是
+
+`@Transactional` 注解一般用在可以作用在`类`或者`方法`上。
+
+- **作用于类**：当把`@Transactional 注解放在类上时，表示所有该类的`public 方法都配置相同的事务属性信息。
+- **作用于方法**：当类配置了`@Transactional`，方法也配置了`@Transactional`，方法的事务会覆盖类的事务配置信息。
+
+#### json处理
+
+**`@JsonIgnoreProperties` 作用在类上用于过滤掉特定字段不返回或者不解析。**
+
+```java
+@JsonIgnoreProperties({"userRoles"})//意思就是userRoles这个成员不会变成json数据
+```
+
+**`@JsonIgnore`一般用于类的属性上，作用和上面的`@JsonIgnoreProperties` 一样。**
+
+`@JsonFormat`一般用来格式化 json 数据。：
+
+```java
+@JsonFormat(shape=JsonFormat.Shape.STRING, pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone="GMT")
+private Date date;
+```
+
+`@JsonUnwrapped` 扁平对象
+
+#### 测试相关
+
+**`@ActiveProfiles`一般作用于测试类上， 用于声明生效的 Spring 配置文件。**
+
+**`@Test`声明一个方法为测试方法**
+
+**`@Transactional`被声明的测试方法的数据会回滚，避免污染测试数据。**
+
+**`@WithMockUser` Spring Security 提供的，用来模拟一个真实用户，并且可以赋予权限。**
 
 ## 4.13学习lib项目
 
@@ -1353,7 +1665,7 @@ SpringBoot 还允许我们提供更多的 HealthIndicator 实现，只要将这�
 
 4. http://localhost:8082/swagger-ui.html#/这个在启动之后进入就可以模拟网络传输，添加我们的http包等内容，有什么需要的就直接写。
 
-5. instance函数只是对数据形式的一个转换，一个方法，而不是构造函数
+5. instance函数只是对数据形式的一个转换，一个方法，而不是构造函数，其实也是类似于构造函数
 
 ### 常用注解
 
@@ -1431,6 +1743,8 @@ SpringBoot 还允许我们提供更多的 HealthIndicator 实现，只要将这�
    @PostMapping是一个组合注解，是@RequestMapping(method = RequestMethod.POST)的缩写。
 
    http协议明确规定，put、get与delete请求都是具有幂等性的，而post为非幂等性请求，就是说接口被定义为post请求可访问时，说明这个接口对数据库的影响是非幂等性的。**所以一般插入新数据时，用post方法，更新数据库时，用put方法，**以此类推@PostMapping注解是标示接口为非幂等性接口，@PutMapping注解是标示接口为幂等性接口。
+   
+5. RequestBody注解是获取Http体部的信息的，但是一个请求方法只能有一个body注解，如果要用多个body那就说明数据库设计或者系统设计出问题了。
 
 #### Enable*注解说明
 
@@ -1442,16 +1756,37 @@ SpringBoot 还允许我们提供更多的 HealthIndicator 实现，只要将这�
 
 然后是`AsyncConfigurationSelector.class`这个class，里面继承了一个接口，
 
-#### Springboot注解学习
-
-
-
 ### 知识学习
 
 1. Response类里面有ok，返回正确的结果，需要的结果，.success返回的是是否成功的。
 2. NBSP就是html里面的空格转义符，amp表示&符号
 
+## 4.14学习lib项目
 
+### 问题
 
+1. Predicate接口的作用，是什么意思？获得count的过程是怎么样的，相关函数调用关系？
 
+2. 怎么写target里面的文件才会和在正常包目录下的一样？
 
+3. <img src="SpringBoot.assets/image-20210414135507543.png" alt="image-20210414135507543" style="zoom: 67%;" />
+
+   这是什么意思？
+
+4. @ManyToMany这种注解用来是做什么的？ 用在嵌套表里面，对一个嵌套的表用这个注解，里面加一个@JoinConlumn定义这个嵌套表和我外面的表进行一个连接，用这个就可以让查询更简单，不用再管连接问题了。但是不推荐用，懒加载下可能会挂，虽然方便但是有问题，还是推荐先ids变为set然后再到map里面查询
+
+5. 什么时候会用到@Transactional，对数据库进行修改操作的时候加
+
+6. `@JsonUnwrapped` 扁平对象是什么意思，不懂
+
+### 学习经验
+
+1. sql的查询等操作还有很多要学的东西，本身的语句，api的调用，查询方式的确定等，都是需要继续学习深入的东西
+2.  List\<Predicate>是我们的where子句，加进来之后就会是并的关系。
+3. 因为int默认是0，如果我的条件是空就没法进行判断，就会查出是0的数据，而不是空数据。一般我们都是用的封装类而不是基本数据类型
+4. 因为是一对多的关系，直接连接查询是不行的，所以需要像这样进行而不是直接的连接查询，一对多是不能直接连接查询的。
+   而且生成了set进行查询，这样就只用提供一次东西，也就是批查询，如果是在这里直接写for循环进行查询，那就需要多次从磁盘数据库到内存的过程，我们用set进去就是移进去做一次就行，然后一起传回内存获得结果。做set只是一个习惯性的结果，不一定是需要去重的
+5. 多用工具类进行判断是否为空，因为除了null值还有size=0的情况
+6. @PostMapping()里面的url地址是自定的，但是要符合规范，**restful api**。
+7. settings.xml文件放到.m2下面，作用就是进行**maven的私服配置**，里面有相关的账号和密码等。
+8. client包是我们用的一些微服务，util里面是我们自定义的一些api
