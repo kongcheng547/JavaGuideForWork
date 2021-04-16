@@ -468,6 +468,10 @@ public class EurekaConsumerApplication {
 2. @EnableEurekaClient注解，代表是Eureka的client
    在工程的启动类中，通过@EnableDiscoveryClient向服务中心注册；并且向程序的ioc注入一个bean: restTemplate;并通过@LoadBalanced注解表明这个restRemplate开启负载均衡的功能。
 
+   @EnableDiscoveryClient和@EnableEurekaClient共同点就是：都是能够让注册中心能够发现，扫描到改服务。
+   
+   不同点：@EnableEurekaClient只适用于Eureka作为注册中心，@EnableDiscoveryClient 可以是其他注册中心。
+   
    ```java
    @SpringBootApplication
    @EnableEurekaClient
@@ -482,11 +486,11 @@ public class EurekaConsumerApplication {
        @LoadBalanced
        RestTemplate restTemplate() {
            return new RestTemplate();
-       }
+    }
    
    }
    ```
-
+   
    ```properties
    server:
      port: 8762
@@ -496,11 +500,11 @@ public class EurekaConsumerApplication {
        name: service-hi
    //必须要配置自己需要的一些信息
    eureka:
-     client:
+    client:
        serviceUrl:
          defaultZone: http://localhost:8761/eureka/
    ```
-
+   
 3. 加上@EnableFeignClients注解开启Feign的功能：
 
    定义一个feign接口，通过@ FeignClient（“服务名”），来指定调用哪个服务。比如在代码中调用了service-hi服务的“/hi”接口，代码如下：
@@ -513,7 +517,7 @@ public class EurekaConsumerApplication {
    }
    ```
 
-4.  加@EnableHystrix注解开启Hystrix
+4. 加@EnableHystrix注解开启Hystrix
 
    在hiService方法上加上@HystrixCommand注解。该注解对该方法创建了熔断器的功能，并指定了fallbackMethod熔断方法，熔断方法直接返回了一个字符串，字符串为”hi,”+name+”,sorry,error!”，代码如下：
 
@@ -544,6 +548,24 @@ public class EurekaConsumerApplication {
        String sayHiFromClientOne(@RequestParam(value = "name") String name);
    }
    ```
+
+6. 在主程序启动类中加入@EnableHystrixDashboard注解，开启hystrixDashboard：
+
+   就是一个仪表盘，可以对服务进行监控
+
+   访问http://localhost:8764/hystrix, 
+
+## 五、jbdoctor项目学习
+
+### 4.16 doctor接口学习
+
+学习路径为facade-doctor/src/main/java/com/ebaolife/jbdoctor/doctor/controller/consultation/ConsultInquiryController.java
+
+1. ```java
+   @AnRateLimiter(permitsPerSecond = 3, timeout = 500, msg = "", rc = 0, dataType = 1)
+   ```
+
+   这个注解就是做一个限流，每秒允许三个请求，时间限制500ms，msg是错误的时候返回的消息，一般有默认，rc是返回的状态码，dataType是
 
 
 
