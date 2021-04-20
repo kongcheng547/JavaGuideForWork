@@ -1,59 +1,5 @@
 # Java语言学习
 
-## 2021年始
-
-### 2.1 Java多线程相关 阅读Java语言程序设计 进阶篇
-
-#### 1.线程相关概念
-
-1. 任务类要实现Runnable接口，只包含一个run方法。调用Thread，用Runnable对象实例化一个Thread对象，然后Thread调用start方法，就将本线程放入了就绪队列，等待执行。run方法是JVM调用的，直接调用只是启动这个run函数，没有增加新线程。
-
-2. sleep是当前线程sleep，不是.的那个线程sleep
-
-3. 这个线程会无限调用自己，即会无限进行构造函数，最后会报错StackOverflowError。另外同一个线程不能重复调用start方法，否则会报IllegalThreadStateException错误。
-
-   ```java
-   package com.company;
-   
-   public class Main implements Runnable{
-   
-       public static void main(String[] args) {
-   	// write your code here
-           new Main();
-       }
-       Main(){
-           Main test=new Main();//在这里无限调用自己
-           new Thread(test);
-       }
-   
-       public void run(){
-           System.out.println("kdasd");
-   
-       }
-   }
-   ```
-
-4. Thread的yield方法，会让出时间给其他线程。用setPriority或者get获得线程优先级1-10.join为等待别的线程结束再执行自己，
-
-#### 2.线程池
-
-1. 利用Excutor接口执行线程池任务，用其子接口ExcutorService来进行管理和控制任务。
-
-   ```java
-   public static void main(String[] args) {
-           ExecutorService e= Executors.newFixedThreadPool(3);
-   
-           e.execute(new Main());
-           e.execute(new Main());
-           e.execute(new Main());
-           return ;
-       }
-   ```
-
-   运用上面的函数可以创建固定数目的三个线程，如果是newCachedThreadPool()那么就会在需要的时候就创建线程，如果之前的可用也不用创建。下面的e.excute(Runnable)，一样，和Thread运行一样
-
-2. 线程池其实就是对线程的一种管理，不会为多个程序创建多个线程，只是有的时候再使用，而且可以实现重用。还有其他函数如shutdown()，关闭执行器但是等待所有线程执行完毕，shutdownNow()是马上关闭。还有isShutdown  isTerminated等进行判断，看执行器是否关闭，看线程是否全部终止。
-
 ## Java基础
 
 ### 一、数据类型
@@ -412,6 +358,18 @@ https://www.cnblogs.com/acm-bingzi/p/javaAnnotation.html
 JRE是Java Runtime Environment，Java运行环境的简称，是一个JVM程序，主要包含了JVM的标准实现和一些Java的标准类库。
 
 JDK是Java Development Kit，Java开发工具包，提供了Java的开发和运行环境，JDK是开发的核心，里面包含了JRE以及一些其他的工具，比如javac这个编译器。
+
+JVM是运行Java字节码的虚拟机，JVM针对不同系统的特定实现，目的是使用相同的字节码，得出一样的结果。
+
+##### 什么是字节码
+
+JVM可以理解的代码就是字节码，扩展名为.class的文件。通过字节码，一定程度上解决了传统解释型语言的执行效率低的问题，同时又保留了解释型语言可移植的特点，所以运行时较为高效，靠着字节码，实现了Java的一次编译到处运行的特点。
+
+##### Java从程序到运行有三步：
+
+.java文件源代码$\to$ .class字节码文件$\to$ 机器可以执行的二进制机器码，通过JVM实现转换。
+
+字节码到二进制机器码的过程中，JVM类加载器先加载字节码文件，然后解释器逐行解释执行，这样的方式速度较慢，而且有些地方是多次调用的，所以引入了JIT编译器，just in time complier，运行时编译，而且编译第一次之后会把对应的机器码保存起来方便下次使用，所以我们说Java是编译和解释共存的语言。HotSPot采用了惰性评估的做法，二八定律，大部分的资源只是一点代码，所以JIT只对这一部分进行编译。JVM会对其进行优化，所以执行次数越多则优化越多，那么速度就越快。JDK9引入了AOT模式，直接把字节码编译成机器码，这样就避免了JIT预热等各种问题。JDK支持分层编译和AOT协作使用，但是AOT编译器的编译质量比不上JIT编译器的。
 
 ## Java容器
 
