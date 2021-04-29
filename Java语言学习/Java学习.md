@@ -210,19 +210,25 @@ switch在Java 7开始支持String，但是不支持double、long、float等数�
 
    通过反射，我们可以在运行时获得程序或程序集中每一个类型的成员和成员的信息。程序中一般的对象的类型都是在编译期就确定下来的，而 Java  反射机制可以动态地创建对象并调用其属性，这样的对象的类型在编译期是未知的。所以我们可以通过反射机制直接创建对象，即使这个对象的类型在编译期是未知的。
 
+   反射之所以被称为框架的灵魂，主要是因为它赋予了我们在运行时分析类以及执行类中方法的能力。
+
+   通过反射你可以获取任意一个类的所有属性和方法，你还可以调用这些方法和属性。
+
    **是运行时对一个类进行构造或者判断**
 
 2. 反射提供运行时的类信息，即运行时类型识别，RTTI，这个类可以在运行的时候才加载进来，甚至在编译时期该类的.class不存在也可以加载进来。
 
-   Class 和 java.lang.reflect 一起对反射提供了支持，java.lang.reflect 类库主要包含了以下三个类：
+   优点是代码更加灵活，为各种框架提供了便利。缺点是性能差无法优化、且无视类型检查会导致一些安全问题。
+
+3. Class 和 java.lang.reflect 一起对反射提供了支持，java.lang.reflect 类库主要包含了以下三个类：
 
    - **Field**  ：可以使用 get() 和 set() 方法读取和修改 Field 对象关联的字段；
    - **Method**  ：可以使用 invoke() 方法调用与 Method 对象关联的方法；
    - **Constructor**  ：可以用 Constructor 的 newInstance() 创建新的对象。
 
-3. IDEA等用的时候.号出现候选，就用到了反射。框架开发的时候，需要根据配置文件加载不同的对象或类，调用不同的方法，此时就用到了反射。
+4. IDEA等用的时候.号出现候选，就用到了反射。框架开发的时候，需要根据配置文件加载不同的对象或类，调用不同的方法，此时就用到了反射。
 
-4. .class名字，或者getClass()方法，instanceof关键字判断是否某个类的实例。
+5. .class名字，或者getClass()方法，instanceof关键字判断是否某个类的实例。
 
    1. 也可以用isInstance()方法判断是否是某个类的实例，这是一个native方法(native方法就是由别的语言实现的，比如系统调用，底层实现等，帮助提高Java效率，更方便地实现一些功能)。isInstance只能对List进行判断，但是不能对List\<Integer>进行判断，这样是错误的。
    2. 使用Class对象的newInstance()方法来创建Class对象对应类的实例。
@@ -248,17 +254,54 @@ switch在Java 7开始支持String，但是不支持double、long、float等数�
 
    5. getFiled()方法访问共有的成员变量
 
-5. 反射消耗系统资源，因为是动态的JVM无法调优，要求在安全环境下使用，代码也有暴露的副作用。
+6. 反射消耗系统资源，因为是动态的JVM无法调优，要求在安全环境下使用，代码也有暴露的副作用。
 
 ### 八、异常
 
 1. Throwable可以表示任何异常抛出的类。分为Error和Exception。Error表示JVM无法处理的错误，Exception分为受检测的即可以try catch的语句，和非受检，例如除以0的，遇到了就程序崩溃了。
 
-   
-
    <img src="Java学习.assets/PPjwP.png" alt="img" style="zoom: 15%;" />
 
+2. 受检查的异常如FileNotFound等，不加try catch是无法通过编译的。
 
+3. finally语句都会执行，即使在try catch里面有return语句，也会先finally再return，并且finally里面的返回值会覆盖掉本来的返回值。只有以下几种情况下不会执行finally：
+
+   1. 在 `try` 或 `finally`块中用了 `System.exit(int)`退出程序。但是，如果 `System.exit(int)` 在异常语句之后，`finally` 还是会被执行
+   2. 程序所在的线程死亡。
+   3. 关闭 CPU。
+
+4. try-with-resources：
+
+   面对必须要关闭的资源，我们总是应该优先使用 `try-with-resources` 而不是`try-finally`。随之产生的代码更简短，更清晰，产生的异常对我们也更有用。`try-with-resources`语句让我们更容易编写必须要关闭的资源的代码，若采用`try-finally`则几乎做不到这点。
+
+   ```java
+           //读取文本文件的内容
+           Scanner scanner = null;
+           try {
+               scanner = new Scanner(new File("D://read.txt"));
+               while (scanner.hasNext()) {
+                   System.out.println(scanner.nextLine());
+               }
+           } catch (FileNotFoundException e) {
+               e.printStackTrace();
+           } finally {
+               if (scanner != null) {
+                   scanner.close();
+               }
+           }
+   ```
+
+   使用 Java 7 之后的 `try-with-resources` 语句改造上面的代码:
+
+   ```java
+   try (Scanner scanner = new Scanner(new File("test.txt"))) {
+       while (scanner.hasNext()) {
+           System.out.println(scanner.nextLine());
+       }
+   } catch (FileNotFoundException fnfe) {
+       fnfe.printStackTrace();
+   }
+   ```
 
 ### 九、泛型
 
