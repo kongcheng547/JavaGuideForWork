@@ -1,2 +1,2 @@
 # JavaGuideForWork
-This is a repo for those who wants a work
+This is a repo for those who want a work

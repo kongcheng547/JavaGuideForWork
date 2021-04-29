@@ -44,7 +44,7 @@
 #### 参数传递以值传递进行
 
 1. 参数传递是以值传递的方式进行的，而不是引用的方式。
-2. 但是在传对象的时候，是把对象的地址用值的形式传递下去的，因此在函数内改变参数的值会引起原来对象的改变。
+2. 但是在传对象的时候，是把对象的地址用值的形式传递下去的，因此在函数内改变参数的值会引起原来对象的改变。**可以改变引用对象的内容，但是不能改变引用变量的指向**，就是说我原本指向stu1，我可以改变stu1的内容，但是不能让我指向stu2
 
 #### 隐式类型转换
 
@@ -120,7 +120,34 @@ switch在Java 7开始支持String，但是不支持double、long、float等数�
    
    ```
 
-2. equals方法，和null比较，任何不是null的都是错的。==判断值是否相等，基本类型没有equals方法。对于引用类型= =判断两个变量是否引用同一个对象，但是equals判断引用的对象是否等价。
+2. equals方法，和null比较，任何不是null的都是错的。基本类型没有equals方法。对于引用类型= =判断两个变量是否引用同一个对象，因为==判断的是引用对象的地址值是否相等，但是equals判断引用的对象是否等价。在没有覆盖equals方法的时候等价于通过\==进行比较，覆盖了一般我们是按照属性相等(即内部成员值相等)进行判断的，比如String是重写了的。
+
+   **所有整型对象Integer之间的比较都必须用equals方法比较，==只适用于-128-127的整型**
+
+   ```java
+   //String的equals方法
+   public boolean equals(Object anObject) {
+       if (this == anObject) {
+           return true;
+       }
+       if (anObject instanceof String) {
+           String anotherString = (String)anObject;
+           int n = value.length;
+           if (n == anotherString.value.length) {
+               char v1[] = value;
+               char v2[] = anotherString.value;
+               int i = 0;
+               while (n-- != 0) {
+                   if (v1[i] != v2[i])
+                       return false;
+                   i++;
+               }
+               return true;
+           }
+       }
+       return false;
+   }
+   ```
 
 3. hashCode()方法，返回hash值，散列值相同但对象不一定等价。重写equals方法的时候一定要重写hashCode()方法，保证hash值是一样的。
 
@@ -128,9 +155,13 @@ switch在Java 7开始支持String，但是不支持double、long、float等数�
    31*x == (x<<5)-x//和31相乘的数的快速计算方法
    ```
 
+   HashSet检查重复的过程是：先看hashcode计算得到位置，然后看set里面有没有一样的hashcode，如果没有就直接插入，如果有相同的hashcode，就必须调用equals来判断是否相等，如果检查结果是相等的那就不允许加入这个元素到set中。如果不同就散列到其他位置，这样我们就大大减少了equals的次数，提高了执行的速度，hashcode是本地方法，计算较快，校验速度比equals快。
+
+   为什么重写equals必须要重写hashcode？是因为hashcode相等，但是equals不一定相等，涉及到hash碰撞的问题。如果我们重写了equals方法，不再是原本的判断方法，那么可能会出现我们的equals相等，但是hashcode不相等的情况(因为object的hashcode方法是默认按照对象内存地址进行计算的)，这时候就不能保证equals相等的情况下hashcode相等了。
+
 4. clone()方法，必须实现了才能用。应该注意的是，clone() 方法并不是 Cloneable 接口的方法，而是 Object 的一个 protected  方法。Cloneable 接口只是规定，如果一个类没有实现 Cloneable 接口又调用了 clone() 方法，就会抛出  CloneNotSupportedException。
 
-   浅拷贝只是将两个变量都指向了同一个对象。深拷贝是引用了不同的对象，创建了新的对象。浅拷贝就是自己只是简单地继承了clone方法，深拷贝是自己写的。这个函数不安全，所以最好不用，可以用拷贝构造函数，或者拷贝工厂。
+   浅拷贝只是将两个变量都指向了同一个对象，引用传递。**深拷贝是引用了不同的对象，创建了新的对象。**浅拷贝就是自己只是简单地继承了clone方法，深拷贝是自己写的。这个函数不安全，所以最好不用，可以用拷贝构造函数，或者拷贝工厂。
 
 ### 六、继承
 
@@ -154,10 +185,10 @@ switch在Java 7开始支持String，但是不支持double、long、float等数�
 
 #### 重写和重载
 
-1. 重写指子类声明了一个和父类声明一样的方法。子类的返回类型是和父类一样的或者是其子类型。子类抛出的异常也要是父类相关的类型。
+1. 重写指子类声明了一个和父类声明一样的方法。子类的返回类型是和父类一样的或者是其子类型，抛出异常也要更小或者相等。所有内容都要相同。`private/final/static` 则子类就不能重写该方法，但是被 static 修饰的方法能够被再次声明。访问权限子类要更大
 2. 使用@Override注解，让编译器检查是否满足三个限制条件。
 3. 重写的时候就先看子类里面有没有对应的方法，没有再看父类的方法。
-4. **重载是在一个类里面，方法名称相同，但是参数列表不同的，返回值不在考虑范围内。**
+4. **重载是在一个类里面，方法名称相同，但是参数列表不同的，返回值不在考虑范围内。重载只看参数列表(z代表载，则zhi看参数列表)**
 
 #### 里式替换原则
 
@@ -316,6 +347,24 @@ switch在Java 7开始支持String，但是不支持double、long、float等数�
 
    ​       List\<String> rawList = new ArrayList()
 
+6. 泛型与反射
+
+   ```java
+   List<Integer> list = new ArrayList<>();
+   
+   list.add(12);
+   //这里直接添加会报错
+   list.add("a");
+   Class<? extends List> clazz = list.getClass();
+   Method add = clazz.getDeclaredMethod("add", Object.class);
+   //但是通过反射添加，是可以的
+   add.invoke(list, "kl");
+   
+   System.out.println(list);
+   ```
+
+   反射添加成功是可以的，因为泛型是在编译时进行类型检查，在编译结束之后就会去掉类型信息，这样在反射的时候，跳过了编译，所以可以插入String。
+
 ### 十、注解***Annontation*** 需要再看
 
 https://www.cnblogs.com/acm-bingzi/p/javaAnnotation.html
@@ -345,7 +394,7 @@ https://www.cnblogs.com/acm-bingzi/p/javaAnnotation.html
 
 #### Java和C++的区别
 
-- Java 是纯粹的面向对象语言，所有的对象都继承自 java.lang.Object，C++ 为了兼容 C 即支持面向对象也支持面向过程。
+- Java 是纯粹的面向对象语言，所有的对象都继承自 java.lang.Object，C++ 为了兼容 C 即支持面向对象也支持面向过程。Java的面向对象导致其性能比面向过程的语言低，但是java慢的主要原因是其是半编译语言，面向过程和对象的区别其实不是性能的根本影响因素。
 - Java 通过虚拟机从而实现跨平台特性，但是 C++ 依赖于特定的平台。是因为Java虚拟机将java程序翻译为不同的字节码，实现了在不同平台上面的通用。
 - Java 没有指针，它的引用可以理解为安全指针，而 C++ 具有和 C 一样的指针。
 - Java 支持自动垃圾回收，而 C++ 需要手动回收。
@@ -1913,7 +1962,7 @@ Character为[0,127]，超过的会创建新的对象。
 **Integer 比较更丰富的一个例子:**
 
 ```java
-  Integer i1 = 40;
+  Integer i1 = 40; //直接用的常量池
   Integer i2 = 40;
   Integer i3 = 0;
   Integer i4 = new Integer(40);
