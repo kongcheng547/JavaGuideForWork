@@ -28,6 +28,18 @@
    6. 什么时候该用包装类，什么时候用基本类型，看基本的业务来定：这个字段允许null值，就需要使用包装类型，如果不允许null值，使用基本类型就可以了，用到比如泛型和反射调用函数，就需要用包装类！
 
    对于Integer，-127-128有缓存，所以Integer i1=127,i2=127两个是一样的。但是用new就是不等于的。但是对于double等没有缓存的来说，这样就算错的。Byte全都有，char和boolean和short都是在-128-127有缓存。指的是==判断的时候。
+   
+   局部变量用基本属性，返回传值等用包装类型
+   
+4. BigDecimal
+
+   浮点数之间的等值判断，基本数据类型不能用==来比较，包装类型不能用equals来比较，原因是浮点数的编码在计算机里面存储其实是不完全精确的，在某个位之后就会有些不同。所以我们要用BigDecimal来定义浮点数的值，再进行浮点数的运算操作。
+
+   构造BigDecimal对象的时候，我们不能用double直接构造，这样本身double精度丢失再构造则精度是错误的，所以要用String作为对象进行构造。
+
+   BigInteger用来做大整数的计算(超过long类型)，BigDecimal实现用到了BigInteger
+
+5. 
 
 ### 二、String
 
@@ -58,21 +70,21 @@ switch在Java 7开始支持String，但是不支持double、long、float等数�
 
 #### final
 
-1. final不可改变，引用不可变，但是引用的对象可变。也就是一个final对象变量，不能指向别的对象，但是指向的对象是可变的。
-2. final方法不可被重写，override。private隐式地是final，
+1. final不可改变，引用不可变，但是引用的对象可变。也就是一个final对象变量，不能指向别的对象，**但是指向的对象是可变的，也就是说它只是对引用变量是final的，地址是final的**
+2. final方法不可被重写，override。**private隐式地是final，**
 3. 类不可以被继承
 
 #### static
 
-1. 静态变量属于整个类
+1. 静态变量属于整个类，存放在方法区
 
 2. 静态方法在类加载的时候就存在了，**静态则不能是抽象方法**，静态则只能访问静态方法和静态字段，不能有this和super关键字，因为他们和具体的互相关联。
 
-3. 静态语句块在类初始化的时候运行一次。
+3. 静态语句块在类初始化的时候运行一次。可以对之后定义的静态变量赋值但是不能访问，
 
-4. 非静态内部类需要有对象才可以创建，但是静态的内部类可以直接创建，它可以访问外部类的所有资源(除了非静态的)。
+4. 非静态内部类需要有对象才可以创建，但是静态的内部类可以直接创建，它可以访问外部类的静态资源，但是非静态资源是不让其访问的。静态内部类只会在调用到类的时候才会实例化，外部类是否实例化和它无关。
 
-5. 静态导包，这使得在使用静态方法和变量的时候不再需要class的名字了，不需要类都可以直接使用。
+5. 静态导包，这使得在使用静态方法和变量的时候不再需要class的名字了，不需要类都可以直接使用相关的成员函数和成员变量。
 
 6. 静态的变量和块初始化顺序先于非静态的，最后才是构造函数。
 
@@ -214,6 +226,8 @@ switch在Java 7开始支持String，但是不支持double、long、float等数�
 
    通过反射你可以获取任意一个类的所有属性和方法，你还可以调用这些方法和属性。
 
+   框架里面的动态代理、IOC以及注解等都用到了反射。
+
    **是运行时对一个类进行构造或者判断**
 
 2. 反射提供运行时的类信息，即运行时类型识别，RTTI，这个类可以在运行的时候才加载进来，甚至在编译时期该类的.class不存在也可以加载进来。
@@ -251,8 +265,8 @@ switch在Java 7开始支持String，但是不支持double、long、float等数�
    ```
 
    4. getMethod()或者s等方法可以返回某个类特定的方法或者全部的方法。获取之后就可以用invoke来调用一个方法。
-
-   5. getFiled()方法访问共有的成员变量
+5. getFiled()方法访问共有的成员变量
+   6. method.setAccessible()可以绕过一些安全检查
 
 6. 反射消耗系统资源，因为是动态的JVM无法调优，要求在安全环境下使用，代码也有暴露的副作用。
 
@@ -420,7 +434,160 @@ https://www.cnblogs.com/acm-bingzi/p/javaAnnotation.html
    SuppressWarning 不是一个标记类型注解。它有一个类型为String[] 的成员，这个成员的值为被禁止的警告名。对于javac  编译器来讲，被-Xlint 选项有效的警告名也同样对@SuppressWarings 有效，同时编译器忽略掉无法识别的警告名。
 　　@SuppressWarnings("unchecked") 
 
-### 十一、特性
+### 十一、枚举
+
+#### 概览
+
+java5中引入了enum关键字。
+
+enum比常量的优点在于，其使代码具有可读性，允许进行编译时检查，预先记录可接受值的列表，避免由于传入无效值而引起的意外行为。
+
+#### 使用 == 比较枚举类型
+
+==比较比equals更安全，因为在null的时候不会抛出异常。
+
+```java
+if (Pizza.PizzaStatus.DELIVERED.equals(TestColor.GREEN)); // 编译正常
+if (Pizza.PizzaStatus.DELIVERED == TestColor.GREEN);      // 编译失败，类型不匹配
+```
+
+这时候就有了编译时的类型检查
+
+#### 枚举类型的属性、方法和构造函数
+
+加上方法和构造函数让它更加强大。
+
+#### EnumSet
+
+这是专门为枚举类型设计的Set类型。提供了类型安全的替代方法(基于int的位标志)，让我们可以写出更加易读和易于维护的代码。
+
+EnumSet是一个抽象类，其有两个实现：RegularEnumSet和JunBoEnumSet，选择哪一个取决于实例化时枚举类中常量的数量。
+
+枚举常量集合的操作(如：取子集、增加、删除、containsAll、removeAll等)用这个很合适。如果迭代则用Enum.values()；
+
+#### EnumMap
+
+就是用枚举常量作为键，并且在内部形成一个数组。
+
+```java
+public enum PinType {
+
+    REGISTER(100000, "注册使用"),//每一个枚举的都相当于是一个对象，static的，根据Pintype可以直接引用这个对象
+    FORGET_PASSWORD(100001, "忘记密码使用"),
+    UPDATE_PHONE_NUMBER(100002, "更新手机号码使用");
+
+    private final int code;
+    private final String message;
+
+    PinType(int code, String message) {
+        this.code = code;
+        this.message = message;
+    }
+
+    public int getCode() {
+        return code;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    @Override
+    public String toString() {
+        return "PinType{" +
+                "code=" + code +
+                ", message='" + message + '\'' +
+                '}';
+    }
+}
+
+System.out.println(PinType.FORGET_PASSWORD.getCode());
+System.out.println(PinType.FORGET_PASSWORD.getMessage());
+System.out.println(PinType.FORGET_PASSWORD.toString());
+```
+
+### 十二、代理
+
+#### 代理模式
+
+一种设计模式，简单地说就是用代理对象来替代对真实对象的访问，这样就可以在不修改原目标对象的前提下，能进行更多的操作，扩展目标对象的功能。代理模式主要作用就是扩展目标对象的功能，比如说在目标对象的某个方法执行前后增加一些自定义的操作。代理模式分为静态代理和动态代理。
+
+#### 静态代理
+
+静态代理里面，对目标对象的每个方法的增强都是手动实现的，非常不灵活。几乎看不到应用场景。从JVM的层面上面来说，静态代理就是在编译时将接口、实现类、代理类这些都变成了一个个实际的class文件，所以其缺乏灵活性，一旦更改一点内容，将会带来巨大的改变量。
+
+实现步骤：
+
+1. 定义一个接口和一个实现类
+2. 创建一个代理类，同样实现这个接口
+3. 将目标对象注入进代理类，然后在代理类的对应方法调用目标类中的对应方法。我们在代理类的同名方法里面调用目标类的方法，这样就可以在目标方法调用前后写一些扩展的代码，实现新的功能。
+
+#### 动态代理
+
+这个更加灵活，不用对每个目标类都单独创建一个代理类，并且不需要实现接口，我们就可以代理实现类(CGLIB动态代理机制)
+
+从JVM层面来说，动态代理是在运行时动态生成类字节码，并加载到JVM中的。
+
+Spring AOP和RPC的实现都依赖了动态代理。
+
+动态代理分为jdk动态代理和CGLIB动态代理。rpc用的就是jdk动态代理
+
+##### JDK动态代理机制
+
+**在 Java 动态代理机制中 `InvocationHandler` 接口和 `Proxy` 类是核心。**Proxy类里面用的最多的是newProxyInstance()，这个方法主要用来生成一个代理对象。
+
+```java
+public static Object newProxyInstance(ClassLoader loader,//类加载器
+                                      Class<?>[] interfaces,//代理实现的接口
+                                      InvocationHandler h)//实现了InvocationHandler接口的对象
+    throws IllegalArgumentException
+{
+    ......
+}
+public interface InvocationHandler {
+
+    /**
+     * 当你使用代理对象调用方法的时候实际会调用到这个方法
+     */
+    public Object invoke(Object proxy, Method method, Object[] args)
+        //三个参数分别是动态代理类、代理类对象调用的方法、method方法的参数
+        throws Throwable;
+}
+```
+
+##### CGLIB动态代理机制
+
+JDK代理要求必须有一个接口，代理的只能是实现了接口的类。
+
+[CGLIB](https://github.com/cglib/cglib)(*Code Generation Library*)是一个基于[ASM](http://www.baeldung.com/java-asm)的字节码生成库，它允许我们在运行时对字节码进行修改和动态生成。CGLIB 通过继承方式实现代理。很多知名的开源框架都使用到了[CGLIB](https://github.com/cglib/cglib)， 例如 Spring 中的 AOP 模块中：如果目标对象实现了接口，则默认采用 JDK 动态代理，否则采用 CGLIB 动态代理。
+
+**在 CGLIB 动态代理机制中 `MethodInterceptor` 接口和 `Enhancer` 类是核心。**
+
+你需要自定义 `MethodInterceptor` 并重写 `intercept` 方法，`intercept` 用于拦截增强被代理类的方法。
+
+```java
+public interface MethodInterceptor
+extends Callback{
+    // 拦截被代理类中的方法
+    public Object intercept(Object obj, //被代理的对象
+                            java.lang.reflect.Method method, //被拦截的方法
+                            Object[] args, //方法参数
+                            MethodProxy proxy//调用原始方法
+                           ) throws Throwable;
+}
+```
+
+##### 二者对比
+
+jdk代理性能更强。一个靠接口，一个靠子类。
+
+#### 静态和动态的区别
+
+静态没有动态灵活。
+
+JVM层面上，静态代理是编译时形成文件，动态代理是直接生成字节码加载到JVM里面。
+
+### 十三、特性
 
 #### Java 8特性
 
@@ -483,7 +650,43 @@ JVM可以理解的代码就是字节码，扩展名为.class的文件。通过�
 
 ##### 2. List
 
-1. ArrayList：动态数组实现，支持随机访问，大小无限制。
+1. Arrays.asList()可以把数组转化为一个List集合。
+
+   ![阿里巴巴Java开发手-Arrays.asList()方法](Java学习.assets/阿里巴巴Java开发手-Arrays.asList()方法.png)
+
+   这个转化并不是完整的返回一个正常的集合，只是返回一个内部类，很多方法都没有实现。
+   
+   这个只能对对象数组使用，对基本类型的数据是没用的，比如int数组，如果强制添加，那么在其中加入的不再是数组内的元素形成新的List，而是直接把数组本身加入了List，此时List就只有一个元素了。
+   
+   ```java
+   List myList = Arrays.asList(1, 2, 3);
+   System.out.println(myList.getClass());//class java.util.Arrays$ArrayList
+   ```
+   
+   返回的内部类就是这个，而不是真正的ArrayList
+   
+   正确的转换为List：
+   
+   ```java
+   Integer [] myArray = { 1, 2, 3 };
+   List myList = Arrays.stream(myArray).collect(Collectors.toList());
+   //基本类型也可以实现转换（依赖boxed的装箱操作）
+   int [] myArray2 = { 1, 2, 3 };
+   List myList = Arrays.stream(myArray2).boxed().collect(Collectors.toList());
+   ```
+   
+2. Collection.toArray()，里面必须指定类型。如
+
+   ```java
+   String [] s= new String[]{
+       "dog", "lazy", "a", "over", "jumps", "fox", "brown", "quick", "A"
+   };
+   List<String> list = Arrays.asList(s);
+   Collections.reverse(list);
+   s=list.toArray(new String[0]);//没有指定类型的话会报错
+   ```
+
+3. ArrayList：动态数组实现，支持随机访问，大小无限制。
 
    1. 初始定义及大小
 
@@ -566,7 +769,7 @@ JVM可以理解的代码就是字节码，扩展名为.class的文件。通过�
        
          在序列化过程中需要对比前后的modCount是否改变，如果改变需要抛出异常。
 
-2. Vector：线程安全的，和ArrayList类似。用了synchronized关键字。
+4. Vector：线程安全的，和ArrayList类似。用了synchronized关键字。
 
    ```java
    public Vector(int initialCapacity, int capacityIncrement) {
@@ -593,7 +796,7 @@ JVM可以理解的代码就是字节码，扩展名为.class的文件。通过�
    List<String> list = new CopyOnWriteArrayList<>();//或者用这个
    ```
 
-3. CopyOnWriteArrayList：两个数组，写的时候在复制的数组上面进行，读写分离互不影响。写需要加锁，防止并发写入数据丢失，写结束之后要把原始数组指向复制数组。
+5. CopyOnWriteArrayList：两个数组，写的时候在复制的数组上面进行，读写分离互不影响。写需要加锁，防止并发写入数据丢失，写结束之后要把原始数组指向复制数组。
 
    ```java
    public boolean add(E e) {
@@ -619,7 +822,7 @@ JVM可以理解的代码就是字节码，扩展名为.class的文件。通过�
 
    适合读多写少的应用场景，但是有缺陷，写的时候复制则内存消耗为两倍，读的时候部分数据可能会没有读到最新写过的。所以不适合内存敏感以及对实时性要求很高的场景。
 
-4. LinkedList：双向链表实现，只可以顺序访问，可以快速插入和删除，**还可以用作栈、队列、双向队列，因为有类似的add操作和pop操作，且速度比Stack快**
+6. LinkedList：双向链表实现，只可以顺序访问，可以快速插入和删除，**还可以用作栈、队列、双向队列，因为有类似的add操作和pop操作，且速度比Stack快**
 
    基于双向链表实现：
 
@@ -634,7 +837,7 @@ JVM可以理解的代码就是字节码，扩展名为.class的文件。通过�
    ```
 
    所以它不支持随机访问，删除和插入代价小。
-   
+
    poll()方法和offer()方法，还有removeLast()之类，peek()方法
 
 ##### 3. Queue
