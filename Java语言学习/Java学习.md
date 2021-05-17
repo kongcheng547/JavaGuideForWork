@@ -644,9 +644,9 @@ JVM可以理解的代码就是字节码，扩展名为.class的文件。通过�
 
 ##### 1. Set
 
-1. TreeSet：基于红黑树实现，支持有序性操作(即程序执行的顺序按照代码的先后顺序执行)，如根据一个范围寻找元素，但是查找效率低于HashSet，这个因为是树所以查找效率是O(logN)。
-2. HashSet：基于哈希表实现，支持快速查找，效率为O(1)，但是不支持有序性操作，因为本身不是有序的，经过散列之后不再是有序的，而且因为散列失去了插入时的顺序的信息，也就是说用Iterator遍历HashSet得到的结果是不确定的。
-3. LinkedHashSet：具有哈希集合的查找效率，又有双向链表维护元素的插入顺序。这是一个非线程安全的集合。
+1. TreeSet：基于红黑树实现，支持**有序性**操作(即程序执行的顺序按照代码的先后顺序执行)，如根据一个范围寻找元素，但是查找效率低于HashSet，这个因为是树所以查找效率是O(logN)。
+2. HashSet：基于HashMap实现，支持快速查找，效率为O(1)，但是不支持有序性操作，因为本身不是有序的，经过散列之后**不再是有序**的，而且因为散列失去了插入时的顺序的信息，也就是说用Iterator遍历HashSet得到的结果是不确定的。是无序的。
+3. LinkedHashSet：具有哈希集合的查找效率，又有双向链表维护元素的插入顺序。这是一个非线程安全的集合。是HashSet的子类，内部由LinkedHashMap实现。
 
 ##### 2. List
 
@@ -686,7 +686,7 @@ JVM可以理解的代码就是字节码，扩展名为.class的文件。通过�
    s=list.toArray(new String[0]);//没有指定类型的话会报错
    ```
 
-3. ArrayList：动态数组实现，支持随机访问，大小无限制。
+3. ArrayList：动态数组实现，支持随机访问，大小无限制。底层是object数组
 
    1. 初始定义及大小
 
@@ -695,6 +695,12 @@ JVM可以理解的代码就是字节码，扩展名为.class的文件。通过�
    //有RandomAccess接口实现，说明可以随机访问，本身是数组
    private static final int DEFAULT_CAPACITY = 10;//默认数组大小是10
    ```
+
+   这个实现了RandomAccess接口，这只是一个标识符，里面其实没有任何东西，只是后面有些操作需要用到它进行一个判断。LinkedList没有实现，因为其是链表。
+
+   实现了Clone接口，说明可以被克隆，覆盖了clone()函数。
+
+   可以序列化，但是是自己实现的序列化，要保证后面没有填写的元素不被序列化。
 
     2. 添加元素
 
@@ -737,7 +743,7 @@ JVM可以理解的代码就是字节码，扩展名为.class的文件。通过�
        
        ```
 
-   	3. 删除元素
+       3. 删除元素
 
        ```java
            public E remove(int index) {
@@ -753,20 +759,20 @@ JVM可以理解的代码就是字节码，扩展名为.class的文件。通过�
            //意思是删除一个之后要将后面的都复制到前面来，所以耗时很大
        ```
 
-   	4. ```java
+       4. ```java
            transient Object[] elementData; // non-private to simplify nested class access
            //表示不可以被序列化
            ```
            
             ArrayList 实现了 writeObject() 和 readObject() 来控制只序列化数组中有元素填充那部分内容。
             序列化时需要使用 ObjectOutputStream 的 writeObject() 将对象转换为字节流并输出。而 writeObject() 方法在传入的对象存在 writeObject() 的时候会去反射调用该对象的 writeObject() 来实现序列化。反序列化使用的是  ObjectInputStream 的 readObject() 方法，原理类似。 
-       
+
          ```java
          ArrayList list = new ArrayList();
          ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file));
          oos.writeObject(list);
          ```
-       
+
          在序列化过程中需要对比前后的modCount是否改变，如果改变需要抛出异常。
 
 4. Vector：线程安全的，和ArrayList类似。用了synchronized关键字。
@@ -784,6 +790,8 @@ JVM可以理解的代码就是字节码，扩展名为.class的文件。通过�
    ```
 
    构造过程是每次让capacity翻倍(如果increment为负的或者没有时)，或者是每次增加capacityIncrement这么多。
+
+   但是这是古老的过时的集合，所以不使用。
 
    **Vector 是同步的，因此开销就比 ArrayList 要大，访问速度更慢。最好使用 ArrayList 而不是 Vector，因为同步操作完全可以由程序员自己来控制；**
 
@@ -822,7 +830,7 @@ JVM可以理解的代码就是字节码，扩展名为.class的文件。通过�
 
    适合读多写少的应用场景，但是有缺陷，写的时候复制则内存消耗为两倍，读的时候部分数据可能会没有读到最新写过的。所以不适合内存敏感以及对实时性要求很高的场景。
 
-6. LinkedList：双向链表实现，只可以顺序访问，可以快速插入和删除，**还可以用作栈、队列、双向队列，因为有类似的add操作和pop操作，且速度比Stack快**
+6. LinkedList：双向链表(只是双向，不是双向循环链表)实现，只可以顺序访问，可以快速插入和删除，**还可以用作栈、队列、双向队列，因为有类似的add操作和pop操作，且速度比Stack快**
 
    基于双向链表实现：
 
@@ -839,6 +847,18 @@ JVM可以理解的代码就是字节码，扩展名为.class的文件。通过�
    所以它不支持随机访问，删除和插入代价小。
 
    poll()方法和offer()方法，还有removeLast()之类，peek()方法
+   
+7. 写Comparator的方法：
+
+   ```java
+           Collections.sort(arrayList, new Comparator<Integer>() {
+   
+               @Override
+               public int compare(Integer o1, Integer o2) {
+                   return o2.compareTo(o1);
+               }
+           });
+   ```
 
 ##### 3. Queue
 
@@ -984,14 +1004,14 @@ JVM可以理解的代码就是字节码，扩展名为.class的文件。通过�
    　　}
    ```
 
-   从jdk1.8开始，一个链表超出8个元素的时候就会转换为红黑树。
+   从jdk1.8开始，一个链表超出**8个元素**的时候就会转换为红黑树。(默认八个元素，而且数组长度小于64的时候是扩容而不是转为红黑树)
 
    - Hashtable 使用 synchronized 来进行同步。
    - HashMap 可以插入键为 null 的 Entry。
    - HashMap 的迭代器是 fail-fast 迭代器。  fail-fast:直接在容器上进行遍历，fail-safe:这种遍历基于容器的一个克隆。因此，对容器内容的修改不影响遍历。
    - HashMap 不能保证随着时间的推移 Map 中的元素次序是不变的，因为扩容会改变位置
 
-3. HashTable：和HashMap类似，但是是线程安全的，这个已经老了不应该用了。应该使用ConcurrentHashMap，线程安全，且效率高，因为用了分段锁。
+3. HashTable：和HashMap类似，数组+链表组成，但是是线程安全的，这个已经老了不应该用了。应该使用ConcurrentHashMap，线程安全，且效率高，因为用了分段锁。
 
 4. **ConcurrentHashMap**：线程安全，因为使用了分段锁，在多线程的时候可以访问不同分段的内容。分段数就是并发程度，默认是16。需要对其底层代码进行熟悉。
 
@@ -1002,7 +1022,7 @@ JVM可以理解的代码就是字节码，扩展名为.class的文件。通过�
    - 当调用  get() 方法时，会先从 eden 区获取，如果没有找到的话再到 longterm 获取，当从 longterm 获取到就把对象放入 eden 中，从而保证经常被访问的节点不容易被回收。
    - 当调用 put() 方法时，如果 eden 的大小超过了 size，那么就将 eden 中的所有对象都放入 longterm 中，利用虚拟机回收掉一部分不经常使用的对象。
 
-6. LinkedHashMap：本身是HashMap，双向链表维护元素顺序，顺序可以是插入的顺序或者是LRU的顺序。LinkedHashMap可以用来实现固定大小的LRU缓存，当LRU缓存已经满了的时候，它会把最老的键值对移出缓存。LinkedHashMap提供了一个称为removeEldestEntry()的方法，该方法会被put()和putAll()调用来删除最老的键值对。当然，如果你已经编写了一个可运行的JUnit测试，你也可以随意编写你自己的实现代码。
+6. LinkedHashMap：本身(继承自)是HashMap，双向链表维护元素顺序，顺序可以是插入的顺序或者是LRU的顺序。LinkedHashMap可以用来实现固定大小的LRU缓存，当LRU缓存已经满了的时候，它会把最老的键值对移出缓存。LinkedHashMap提供了一个称为removeEldestEntry()的方法，该方法会被put()和putAll()调用来删除最老的键值对。当然，如果你已经编写了一个可运行的JUnit测试，你也可以随意编写你自己的实现代码。
 
 ### 二、容器中的设计模式
 
@@ -2272,6 +2292,12 @@ Java的IO大致可以分为以下几类：
 - 对象操作：Serializable
 - 网络操作：Socket
 - 新的输入/输出：NIO
+
+常见IO模型：
+
+UNIX 系统下， IO 模型一共有 5 种： **同步阻塞 I/O**、**同步非阻塞 I/O**、**I/O 多路复用**、**信号驱动 I/O** 和**异步 I/O**。
+
+BIO就是Blocking IO
 
 ### 二、磁盘操作
 
