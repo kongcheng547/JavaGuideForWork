@@ -39,7 +39,6 @@
 
    BigInteger用来做大整数的计算(超过long类型)，BigDecimal实现用到了BigInteger
 
-5. 
 
 ### 二、String
 
