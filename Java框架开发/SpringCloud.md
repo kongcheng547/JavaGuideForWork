@@ -176,8 +176,6 @@ ZUUL 是从设备和 web 站点到 Netflix 流应用后端的所有请求的前�
 
 1. zuul需要向Eureka服务器注册，注册的目的是拿到所有consumer的信息，这样就可以拿到所有如ip地址、端口号等信息。拿到之后就可以进行路由映射，
 
-2. 
-
 3. 统一前缀：就是我们可以在前面加一个统一的前缀，比如我们刚刚调用的是 `localhost:9000/consumer1/studentInfo/update`，这个时候我们在 `yaml` 配置文件中添加如下。
 
    ```java
@@ -555,19 +553,37 @@ public class EurekaConsumerApplication {
 
    访问http://localhost:8764/hystrix, 
 
-## 五、jbdoctor项目学习
+## 五、消息队列学习
 
-### 4.16 doctor接口学习
+RabbitMQ、Kafka、RocketMQ
 
-学习路径为facade-doctor/src/main/java/com/ebaolife/jbdoctor/doctor/controller/consultation/ConsultInquiryController.java
+### 基础信息学习
 
-1. ```java
-   @AnRateLimiter(permitsPerSecond = 3, timeout = 500, msg = "", rc = 0, dataType = 1)
-   ```
+#### 1. 什么是消息队列？
 
-   这个注解就是做一个限流，每秒允许三个请求，时间限制500ms，msg是错误的时候返回的消息，一般有默认，rc是返回的状态码，dataType是
+消息队列是一个存放消息的容器，当我们需要使用消息的时候，直接从容器里面取出我们需要的消息使用就可以了。这是分布式系统里面重要的组件之一，主要是为了通过异步处理提高系统性能和削峰、降低系统耦合性。
 
+#### 2. 为什么要用消息队列？
 
+要结合项目进行拓展
+
+##### 异步处理提高系统性能，减少响应时间
+
+![通过异步处理提高系统性能](SpringCloud.assets/Asynchronous-message-queue.png)
+
+对数据库的访问做一个异步处理，先返回一个消息给用户说，我已经收到了你的请求，我现在在处理了。将用户的请求放到消息队列就返回消息。但是后面的数据库请求可能会失败，所以要配套一系列措施，保证访问数据库等请求完全成功之后才返回给用户成功的信息。比如我们订火车票，只是得到请求成功的等待期，完全成功之后才会返回一个订单的信息。
+
+##### 削峰、限流
+
+将短时间内高并发产生的事务消息存储在消息队列里面，后端服务再根据自己的能力去消费这些信息，就不会说一下子高并发导致数据库等服务跟不上。
+
+比如电商的秒杀、促销等活动，合理使用消息队列就可以有效抵御促销活动刚开始的时候涌入的大量订单信息。
+
+![削峰](SpringCloud.assets/削峰-消息队列.png)
+
+消息大量堆积在消息队列里面，等到合适的时候才进行一个使用。
+
+##### 降低系统耦合性
 
 
 
