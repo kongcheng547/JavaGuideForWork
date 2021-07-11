@@ -1156,6 +1156,8 @@ Java提供了两种锁机制来实现互斥访问，一种是JVM实现的synchro
 
 3. 对一个内部类同步，则作用于整个类，也就是说两个对象同时使用的时候会受到同步限制。
 
+4. 静态方法只要不访问全局变量就不会导致并发问题。对于一个对象的非静态方法使用，那么在对这个地方进行访问的时候需要这个对象的锁。如果是一个静态方法上，属于这个类的方法，此时再对一个同步的实例非静态方法进行访问是可以的，不会互斥，因为一个是属于类的一个是属于实例对象的。
+
 #### ReentrantLock
 
 这是JUC里面的锁，即java.util.concurrent。和Lock的关系就和List和ArrayList的关系一样，子类和父类。
@@ -1219,6 +1221,10 @@ Java提供了两种锁机制来实现互斥访问，一种是JVM实现的synchro
 JUC提高了并发性能，AQS是JUC的核心。java.util.concurrent包。AbstractQueuedSynchronizer（AQS）
 
 这个得重新看。
+
+**AQS  核心思想是，如果被请求的共享资源空闲，则将当前请求资源的线程设置为有效的工作线程，并且将共享资源设置为锁定状态。如果被请求的共享资源被占用，那么就需要一套线程阻塞等待以及被唤醒时锁分配的机制，这个机制 AQS 是用 CLH 队列锁实现的，即将暂时获取不到锁的线程加入到队列中。**
+
+CLH(Craig,Landin,and Hagersten)队列是一个虚拟的双向队列（虚拟的双向队列即不存在队列实例，仅存在结点之间的关联关系）。AQS 是将每条请求共享资源的线程封装成一个 CLH 锁队列的一个结点（Node）来实现锁的分配。
 
 #### CountDownLatch
 
@@ -1405,7 +1411,35 @@ ForkJoinPool的模型就是实现一个工作窃取算法，本身做好了的�
    2. synchronized，即对一个变量unlock的时候，要将变量更改同步回去
    3. final，一旦初始化完成且没有this逃逸(其他线程通过this引用访问初始化一半的对象)
 
-3. 有序性，指的是在一个线程里面观察，所有操作都是有序的，但是因为Java内存模型里面允许编译器和处理器更改指令顺序提高效率，所有多线程的时候结果就不能得到保证。于是用volatile关键字，添加内存屏障，禁止指令顺序更改。也可以用synchronized关键字，因为保证一个时刻只能有一个线程执行代码，相当于就是按顺序执行。
+3. 有序性，指的是在一个线程里面观察，所有操作都是有序的，但是因为Java内存模型里面允许编译器和处理器更改指令顺序提高效率，所有多线程的时候结果就不能得到保证。**于是用volatile关键字，添加内存屏障，禁止指令顺序更改。**也可以用synchronized关键字，因为保证一个时刻只能有一个线程执行代码，相当于就是按顺序执行。
+
+   ```java
+   public class Singleton {
+   
+       //单例模式双重校验法，这个加上volatile就很关键，防止这一步new的时候指令顺序有变：
+       /* 分为以下三步
+       为 uniqueInstance 分配内存空间
+   		    初始化 uniqueInstance
+   		    将 uniqueInstance 指向分配的内存地址*/
+       private volatile static Singleton uniqueInstance;
+   
+       private Singleton() {
+       }
+   
+       public  static Singleton getUniqueInstance() {
+          //先判断对象是否已经实例过，没有实例化过才进入加锁代码
+           if (uniqueInstance == null) {
+               //类对象加锁
+               synchronized (Singleton.class) {
+                   if (uniqueInstance == null) {
+                       uniqueInstance = new Singleton();
+                   }
+               }
+           }
+           return uniqueInstance;
+       }
+   }
+   ```
 
 #### 先行发生原则
 
@@ -1483,7 +1517,7 @@ ForkJoinPool的模型就是实现一个工作窃取算法，本身做好了的�
 
    每一个线程都有自己的Map，当调用线程的set函数的时候，先得到map对象，再去map里面寻找到键值，如果有就改值，没有就插入进map。这个并不能解决多线程并发问题，只是对一些自己的东西，不共享的东西，有一个保护。
 
-   在线程池下，因为ThreadLocalMap底层数据结构导致这个有泄露内存的风险，应该尽可能在每次使用这个ThreadLocal之后手动调用remove()函数，防止内存泄露
+   在线程池下，因为ThreadLocalMap底层数据结构导致这个有泄露内存的风险。其key是弱引用，每次gc都会被回收，但是其value是强引用，不会被gc。如果调用了没有清除，key就会被清除，但是value还在，这就变成了key为null的value了，这样显然是不安全的，所以应该尽可能在每次使用这个ThreadLocal之后手动调用remove()函数，防止内存泄露
 
 3. 可重入代码 Reentrant Code，纯代码，可以在任何时候中断它，转而去执行别的代码，也就是可以随意切断运行，回来之后不会有改变。这些就是因为它不依赖一些共有的资源，用到的状态量都由参数传入而不是全局变量一类的东西，不会调用不可重入的方法等。
 
@@ -1505,7 +1539,7 @@ ForkJoinPool的模型就是实现一个工作窃取算法，本身做好了的�
 
 #### 轻量级锁
 
-1. jdk1.6开始有了四个状态：无锁unlocked 001，偏向锁biasble 101，轻量级锁lightweight locked 00，重量级锁inflated 10。11状态是marked for gc
+1. jdk1.6开始有了四个状态：无锁unlocked 001，偏向锁biasble 101，轻量级锁lightweight locked 00，重量级锁inflated 10。11状态是marked for gc。锁的升级就是从这四个状态逐渐升级的过程，比如偏向锁有了竞争就到了轻量级锁，然后乐观锁操作失败就到了重量级锁。
 2. 轻量级锁是相对于重量级锁而言的，因为大多数锁在用的时候都不会被用到，不存在竞争，因此就不需要互斥量的操作，所以就用轻量级锁，先用CAS操作，如果CAS失败了再用互斥量进行同步
 3. CAS失败之后就会进行检查，若是有两个以上的线程争用一个锁，那轻量级锁就不再有效，需要膨胀为重量级锁。
 
@@ -1618,14 +1652,32 @@ Executor框架是Java 5之后引进的，在这里面用这个启动线程比使
 
 <img src="Java学习.assets/线程池各个参数之间的关系.png" alt="线程池各个参数的关系" style="zoom: 33%;" />
 
+所以过程就是有一个核心数，线程任务进来的时候看当前运行的线程数目是否达到核心线程数，达到了就去队列里面进行等待，如果任务队列满了，为了提高处理能力，就会把线程数目提升到最大的线程数。如果处理完了，多余的线程空闲下来，超过了等待时间就会被销毁。
+
 `ThreadPoolExecutor`其他常见参数:
 
 1. **`keepAliveTime`**:当线程池中的线程数量大于 `corePoolSize` 的时候，如果这时没有新的任务提交，核心线程外的线程不会立即销毁，而是会等待，直到等待的时间超过了 `keepAliveTime`才会被回收销毁；
 2. **`unit`** : `keepAliveTime` 参数的时间单位。
 3. **`threadFactory`** :executor 创建新线程的时候会用到。
 4. **`handler`** :饱和策略。关于饱和策略下面单独介绍一下。
+   - **`ThreadPoolExecutor.AbortPolicy`**：抛出 `RejectedExecutionException`来拒绝新任务的处理。Spring默认用的是这个。
+   - **`ThreadPoolExecutor.CallerRunsPolicy`**：调用执行自己的线程运行任务，也就是直接在调用`execute`方法的线程中运行(`run`)被拒绝的任务，如果执行程序已关闭，则会丢弃该任务。因此这种策略会降低对于新任务提交速度，影响程序的整体性能。如果您的应用程序可以承受此延迟并且你要求任何一个任务请求都要被执行的话，你可以选择这个策略。
+   - **`ThreadPoolExecutor.DiscardPolicy`：** 不处理新任务，直接丢弃掉。
+   - **`ThreadPoolExecutor.DiscardOldestPolicy`：** 此策略将丢弃最早的未处理的任务请求。
 
+**推荐使用ThreadPoolExecutor进行线程池创建**
 
+因为别的线程池创建允许请求的队列长度或者线程数量都是可以达到很大的，容易导致OOM。而threadPoolExecutor一开始就规定好了用的线程和队列长度。
+
+CPU密集型给N+1(N为电脑核心数)，多一个是怕有一个中断导致cpu空闲。如排序等
+
+IO密集型给2N，因为IO多，且不占用CPU，所以多弄一些线程数。如网络、文件读取等
+
+**父子任务共用一个线程池容易产生死锁：**
+
+![img](Java学习.assets/7888fb0d-4699-4d3a-8885-405cb5415617.png)
+
+子任务俩，一个已经执行完，一个在等待父任务给资源。父任务又在等子任务执行完，所以死锁。解决办法就是不要混用，不同逻辑用不同的线程池。
 
 ### 十三、多线程开发的技巧
 
