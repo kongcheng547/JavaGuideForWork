@@ -315,6 +315,8 @@ switch在Java 7开始支持String，但是不支持double、long、float等数�
        fnfe.printStackTrace();
    }
    ```
+   
+5. 异常分为运行时异常和非运行时异常，RuntimeException的子类，比如NullPointerException。非运行时异常是不监测处理就无法通过编译的，比如文件的io时必须要对ioexception进行一个处理才能编译通过。
 
 ### 九、泛型
 
